@@ -31,10 +31,18 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	buf.WriteString(dbi)
 	buf.Write(k)
 
+	// query first level cache
 	nv, ok := d.cache.Get(buf.String())
 	if ok {
 		return nv.Val, true, nil
 	}
+
+	// query second level cache
+	nv, ok = d.secCache.Get(buf.String())
+	if ok {
+		return nv.Val, true, nil
+	}
+	strbuf.Put(buf)
 
 	var (
 		v []byte
@@ -71,11 +79,12 @@ func (d *MdbxDB) Sync() error {
 func (d *MdbxDB) Close() error {
 	// flush cache data to database
 	keys := d.cache.Keys()
+	batch := d.Batch()
 	for _, key := range keys {
 		nv, _ := d.cache.Get(key)
-		d.batch.Set(nv.Dbi, nv.Key, nv.Val)
+		batch.Set(nv.Dbi, nv.Key, nv.Val)
 	}
-	d.batch.Write()
+	batch.Write()
 
 	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {

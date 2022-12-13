@@ -15,19 +15,12 @@ type NewValue struct {
 	Val []byte
 }
 
-func (nv *NewValue) Reset() {
-	nv.Dbi = ""
-	nv.Key = nil
-	nv.Val = nil
-}
-
 type MdbxDB struct {
-	path  string
-	env   *mdbx.Env
-	cache *lru.Cache[string, *NewValue]
-	dbi   map[string]mdbx.DBI
-	batch ethdb.Batch
-	bsize uint64
+	path     string
+	env      *mdbx.Env
+	cache    *lru.Cache[string, *NewValue]
+	secCache *lru.Cache[string, *NewValue]
+	dbi      map[string]mdbx.DBI
 }
 
 var (
@@ -61,7 +54,8 @@ var (
 )
 
 const (
-	cacheSize = 10240
+	firstLevelCacheSize = 2048
+	secondCacheSize     = 10240
 )
 
 func NewMDBX(path string) *MdbxDB {
@@ -137,18 +131,38 @@ func NewMDBX(path string) *MdbxDB {
 		return nil
 
 	})
-	d.batch = d.Batch()
+
+	// flush data to database
 	var ce error
-	d.cache, ce = lru.NewWithEvict(cacheSize, func(key string, value *NewValue) {
-		d.bsize++
-		d.batch.Set(value.Dbi, value.Key, value.Val)
-		if d.bsize%cacheSize == 0 {
-			err := d.batch.Write()
-			if err != nil {
-				panic(err) // shouldn't miss data
+
+	d.secCache, ce = lru.NewWithEvict(secondCacheSize, func(key string, value *NewValue) {
+
+		err := d.env.View(func(txn *mdbx.Txn) error {
+			_, err := txn.Get(d.dbi[value.Dbi], value.Key)
+			return err
+		})
+
+		if err != nil {
+			batch := d.Batch()
+			batch.Set(value.Dbi, value.Key, value.Val)
+			keys := d.secCache.Keys()
+			for _, key := range keys {
+				val, _ := d.secCache.Get(key)
+				batch.Set(val.Dbi, val.Key, val.Val)
 			}
-			d.batch = d.Batch()
+			err = batch.Write()
+			if err != nil {
+				panic(err)
+			}
 		}
+	})
+
+	if ce != nil {
+		panic(ce)
+	}
+
+	d.cache, ce = lru.NewWithEvict(firstLevelCacheSize, func(key string, value *NewValue) {
+		d.secCache.Add(key, value)
 	})
 	if ce != nil {
 		panic(ce)
