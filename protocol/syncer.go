@@ -285,14 +285,6 @@ func (s *Syncer) WatchSync(ctx context.Context) {
 				continue
 			}
 			newblock = items[0]
-
-			if err = s.blockchain.VerifyFinalizedBlock(newblock); err != nil {
-				if err == blockchain.ErrExistBlock {
-					continue
-				}
-				s.logger.Error("verify block", "err", err)
-				return
-			}
 			stx := time.Now()
 			err = s.blockchain.WriteBlock(newblock)
 			if err != nil {
