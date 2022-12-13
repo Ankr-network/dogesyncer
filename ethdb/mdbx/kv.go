@@ -18,7 +18,11 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
-	d.cache.Add(buf.String(), nv)
+	if dbi == ethdb.AssistDBI {
+		d.asist.Set(buf.String(), nv)
+	} else {
+		d.cache.Set(buf.String(), nv)
+	}
 	strbuf.Put(buf)
 
 	return nil
@@ -31,18 +35,23 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	buf.WriteString(dbi)
 	buf.Write(k)
 
-	// query first level cache
-	nv, ok := d.cache.Get(buf.String())
-	if ok {
-		return nv.Val, true, nil
+	var (
+		nv *NewValue
+		ok bool
+	)
+
+	// query from cache
+	if dbi == ethdb.AssistDBI {
+		nv, ok = d.asist.Get(buf.String())
+	} else {
+		nv, ok = d.cache.Get(buf.String())
 	}
 
-	// query second level cache
-	nv, ok = d.secCache.Get(buf.String())
+	strbuf.Put(buf)
+
 	if ok {
 		return nv.Val, true, nil
 	}
-	strbuf.Put(buf)
 
 	var (
 		v []byte
@@ -79,16 +88,17 @@ func (d *MdbxDB) Sync() error {
 func (d *MdbxDB) Close() error {
 	// flush cache data to database
 	batch := d.Batch()
-	keys := d.cache.Keys()
-	for _, key := range keys {
-		nv, _ := d.cache.Get(key)
+
+	d.cache.Range(func(s string, nv *NewValue) bool {
 		batch.Set(nv.Dbi, nv.Key, nv.Val)
-	}
-	keys = d.secCache.Keys()
-	for _, key := range keys {
-		nv, _ := d.secCache.Get(key)
+		return true
+	})
+
+	d.asist.Range(func(s string, nv *NewValue) bool {
 		batch.Set(nv.Dbi, nv.Key, nv.Val)
-	}
+		return true
+	})
+
 	batch.Write()
 
 	d.env.Sync(true, false)

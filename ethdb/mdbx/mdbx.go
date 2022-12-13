@@ -2,9 +2,11 @@ package mdbx
 
 import (
 	"bytes"
+	"runtime"
 	"sync"
+	"time"
 
-	lru "github.com/hashicorp/golang-lru/v2"
+	"github.com/cornelk/hashmap"
 	"github.com/sunvim/dogesyncer/ethdb"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
@@ -16,11 +18,11 @@ type NewValue struct {
 }
 
 type MdbxDB struct {
-	path     string
-	env      *mdbx.Env
-	cache    *lru.Cache[string, *NewValue]
-	secCache *lru.Cache[string, *NewValue]
-	dbi      map[string]mdbx.DBI
+	path  string
+	env   *mdbx.Env
+	cache *hashmap.Map[string, *NewValue]
+	asist *hashmap.Map[string, *NewValue]
+	dbi   map[string]mdbx.DBI
 }
 
 var (
@@ -51,11 +53,6 @@ var (
 		ethdb.QueueDBI,
 		ethdb.CodeDBI,
 	}
-)
-
-const (
-	firstLevelCacheSize = 2048
-	secondCacheSize     = 10240
 )
 
 func NewMDBX(path string) *MdbxDB {
@@ -133,40 +130,40 @@ func NewMDBX(path string) *MdbxDB {
 	})
 
 	// flush data to database
-	var ce error
-
-	d.secCache, ce = lru.NewWithEvict(secondCacheSize, func(key string, value *NewValue) {
-
-		err := d.env.View(func(txn *mdbx.Txn) error {
-			_, err := txn.Get(d.dbi[value.Dbi], value.Key)
-			return err
-		})
-
-		if err != nil {
-			batch := d.Batch()
-			batch.Set(value.Dbi, value.Key, value.Val)
-			keys := d.secCache.Keys()
-			for _, key := range keys {
-				val, _ := d.secCache.Get(key)
-				batch.Set(val.Dbi, val.Key, val.Val)
-			}
-			err = batch.Write()
-			if err != nil {
-				panic(err)
-			}
-		}
-	})
-
-	if ce != nil {
-		panic(ce)
-	}
-
-	d.cache, ce = lru.NewWithEvict(firstLevelCacheSize, func(key string, value *NewValue) {
-		d.secCache.Add(key, value)
-	})
-	if ce != nil {
-		panic(ce)
-	}
+	d.cache = hashmap.New[string, *NewValue]()
+	d.asist = hashmap.New[string, *NewValue]()
+	go d.syncPeriod()
 
 	return d
+}
+
+func (d *MdbxDB) syncPeriod() {
+	tick := time.Tick(time.Minute)
+	for range tick {
+		m := make(map[string]*NewValue)
+		d.cache.Range(func(s string, nv *NewValue) bool {
+			m[s] = nv
+			return true
+		})
+		tx, err := d.env.BeginTxn(&mdbx.Txn{}, 0)
+		if err != nil {
+			panic(err)
+		}
+
+		runtime.LockOSThread()
+		for _, v := range m {
+			_, err = tx.Get(d.dbi[v.Dbi], v.Key)
+			if err == nil {
+				continue
+			}
+			tx.Put(d.dbi[v.Dbi], v.Key, v.Val, mdbx.Upsert)
+		}
+		tx.Commit()
+		runtime.UnlockOSThread()
+
+		for key := range m {
+			d.cache.Del(key)
+		}
+
+	}
 }
