@@ -376,8 +376,13 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			// Verify and write the data locally
 			for _, block := range sk.blocks {
 
-				s.enqueue.Put(block)
-				s.enqueueCh.In <- struct{}{}
+				err = s.blockchain.WriteBlock(block)
+				if err != nil {
+					s.logger.Error("handle new block", "err", err)
+					return
+				}
+				// s.enqueue.Put(block)
+				// s.enqueueCh.In <- struct{}{}
 
 				currentSyncHeight++
 			}
