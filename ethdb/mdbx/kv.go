@@ -22,11 +22,7 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
-	if dbi == ethdb.AssistDBI {
-		d.asist.Set(buf.String(), nv)
-	} else {
-		d.cache.Set(buf.String(), nv)
-	}
+	d.cache.Set(buf.String(), nv)
 	strbuf.Put(buf)
 
 	return nil
@@ -45,14 +41,8 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	)
 
 	// query from cache
-	if dbi == ethdb.AssistDBI {
-		nv, ok = d.asist.Get(buf.String())
-	} else {
-		nv, ok = d.cache.Get(buf.String())
-	}
-
+	nv, ok = d.cache.Get(buf.String())
 	strbuf.Put(buf)
-
 	if ok {
 		return nv.Val, true, nil
 	}
@@ -96,13 +86,7 @@ func (d *MdbxDB) Close() error {
 	if err != nil {
 		panic(err)
 	}
-
 	d.cache.Range(func(s string, nv *NewValue) bool {
-		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
-		return true
-	})
-
-	d.asist.Range(func(s string, nv *NewValue) bool {
 		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
 		return true
 	})

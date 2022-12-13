@@ -29,7 +29,6 @@ type MdbxDB struct {
 	path  string
 	env   *mdbx.Env
 	cache *hashmap.Map[string, *NewValue]
-	asist *hashmap.Map[string, *NewValue]
 	dbi   map[string]mdbx.DBI
 }
 
@@ -139,7 +138,6 @@ func NewMDBX(path string) *MdbxDB {
 
 	// flush data to database
 	d.cache = hashmap.New[string, *NewValue]()
-	d.asist = hashmap.New[string, *NewValue]()
 	go d.syncPeriod()
 
 	return d
