@@ -78,10 +78,15 @@ func (d *MdbxDB) Sync() error {
 
 func (d *MdbxDB) Close() error {
 	// flush cache data to database
-	keys := d.cache.Keys()
 	batch := d.Batch()
+	keys := d.cache.Keys()
 	for _, key := range keys {
 		nv, _ := d.cache.Get(key)
+		batch.Set(nv.Dbi, nv.Key, nv.Val)
+	}
+	keys = d.secCache.Keys()
+	for _, key := range keys {
+		nv, _ := d.secCache.Get(key)
 		batch.Set(nv.Dbi, nv.Key, nv.Val)
 	}
 	batch.Write()
