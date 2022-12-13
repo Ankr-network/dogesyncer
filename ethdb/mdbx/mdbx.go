@@ -145,12 +145,12 @@ func (d *MdbxDB) syncPeriod() {
 			m[s] = nv
 			return true
 		})
-		tx, err := d.env.BeginTxn(&mdbx.Txn{}, 0)
+
+		runtime.LockOSThread()
+		tx, err := d.env.BeginTxn(nil, 0)
 		if err != nil {
 			panic(err)
 		}
-
-		runtime.LockOSThread()
 		for _, v := range m {
 			_, err = tx.Get(d.dbi[v.Dbi], v.Key)
 			if err == nil {

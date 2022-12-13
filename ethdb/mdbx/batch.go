@@ -40,7 +40,7 @@ func (b *KVBatch) Write() error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	tx, err := b.env.BeginTxn(&mdbx.Txn{}, 0)
+	tx, err := b.env.BeginTxn(nil, 0)
 	if err != nil {
 		panic(err)
 	}
