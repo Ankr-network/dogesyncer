@@ -18,6 +18,13 @@ type NewValue struct {
 	life int64
 }
 
+func (nv *NewValue) Reset() {
+	nv.Dbi = ""
+	nv.Key = nil
+	nv.Val = nil
+	nv.life = 0
+}
+
 type MdbxDB struct {
 	path  string
 	env   *mdbx.Env
@@ -139,11 +146,11 @@ func NewMDBX(path string) *MdbxDB {
 }
 
 const (
-	fiveMin = int64(5 * time.Minute)
+	fiveMin = 5 * 60
 )
 
 func (d *MdbxDB) syncPeriod() {
-	tick := time.Tick(time.Minute)
+	tick := time.Tick(2 * time.Minute)
 	for range tick {
 		m := make(map[string]*NewValue)
 		d.cache.Range(func(s string, nv *NewValue) bool {
@@ -166,10 +173,11 @@ func (d *MdbxDB) syncPeriod() {
 		tx.Commit()
 		runtime.UnlockOSThread()
 
-		curNow := time.Now().UnixMilli()
+		curNow := time.Now().Unix()
 		for key, val := range m {
 			if curNow-val.life > fiveMin {
 				d.cache.Del(key)
+				nvpool.Put(val)
 			}
 		}
 		m = nil

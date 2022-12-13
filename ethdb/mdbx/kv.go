@@ -11,11 +11,12 @@ import (
 
 func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 
-	nv := &NewValue{}
+	nv := nvpool.Get().(*NewValue)
+	nv.Reset()
 	nv.Dbi = dbi
 	nv.Key = k
 	nv.Val = v
-	nv.life = time.Now().UnixMilli()
+	nv.life = time.Now().Unix()
 
 	buf := strbuf.Get().(*bytes.Buffer)
 	buf.Reset()
