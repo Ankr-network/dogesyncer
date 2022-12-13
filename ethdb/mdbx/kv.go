@@ -3,6 +3,7 @@ package mdbx
 import (
 	"bytes"
 	"runtime"
+	"time"
 
 	"github.com/sunvim/dogesyncer/ethdb"
 	"github.com/torquem-ch/mdbx-go/mdbx"
@@ -14,6 +15,7 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	nv.Dbi = dbi
 	nv.Key = k
 	nv.Val = v
+	nv.life = time.Now().UnixMilli()
 
 	buf := strbuf.Get().(*bytes.Buffer)
 	buf.Reset()

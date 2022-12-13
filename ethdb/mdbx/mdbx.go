@@ -12,9 +12,10 @@ import (
 )
 
 type NewValue struct {
-	Dbi string
-	Key []byte
-	Val []byte
+	Dbi  string
+	Key  []byte
+	Val  []byte
+	life int64
 }
 
 type MdbxDB struct {
@@ -137,6 +138,10 @@ func NewMDBX(path string) *MdbxDB {
 	return d
 }
 
+const (
+	fiveMin = int64(5 * time.Minute)
+)
+
 func (d *MdbxDB) syncPeriod() {
 	tick := time.Tick(time.Minute)
 	for range tick {
@@ -161,8 +166,11 @@ func (d *MdbxDB) syncPeriod() {
 		tx.Commit()
 		runtime.UnlockOSThread()
 
-		for key := range m {
-			d.cache.Del(key)
+		curNow := time.Now().UnixMilli()
+		for key, val := range m {
+			if curNow-val.life > fiveMin {
+				d.cache.Del(key)
+			}
 		}
 		m = nil
 	}
