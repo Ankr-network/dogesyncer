@@ -328,10 +328,7 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		if isDifferentNetworkError(err) {
 			s.server.DisconnectFromPeer(p.peer, "Different network")
 		}
-
-		// return error
 		if err != nil {
-			s.logger.Error("find peer", "err", err)
 			continue
 		}
 
