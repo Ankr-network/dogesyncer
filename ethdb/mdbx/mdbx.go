@@ -164,6 +164,6 @@ func (d *MdbxDB) syncPeriod() {
 		for key := range m {
 			d.cache.Del(key)
 		}
-
+		m = nil
 	}
 }

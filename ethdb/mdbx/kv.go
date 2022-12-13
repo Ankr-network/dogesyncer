@@ -2,6 +2,7 @@ package mdbx
 
 import (
 	"bytes"
+	"runtime"
 
 	"github.com/sunvim/dogesyncer/ethdb"
 	"github.com/torquem-ch/mdbx-go/mdbx"
@@ -87,19 +88,23 @@ func (d *MdbxDB) Sync() error {
 
 func (d *MdbxDB) Close() error {
 	// flush cache data to database
-	batch := d.Batch()
+	runtime.LockOSThread()
+	tx, err := d.env.BeginTxn(nil, 0)
+	if err != nil {
+		panic(err)
+	}
 
 	d.cache.Range(func(s string, nv *NewValue) bool {
-		batch.Set(nv.Dbi, nv.Key, nv.Val)
+		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
 		return true
 	})
 
 	d.asist.Range(func(s string, nv *NewValue) bool {
-		batch.Set(nv.Dbi, nv.Key, nv.Val)
+		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
 		return true
 	})
-
-	batch.Write()
+	tx.Commit()
+	runtime.UnlockOSThread()
 
 	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
