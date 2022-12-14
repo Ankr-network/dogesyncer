@@ -190,6 +190,7 @@ func (d *MdbxDB) syncPeriod() {
 
 		for _, key := range keys {
 			d.cache.Delete(key)
+			runtime.Gosched()
 		}
 
 		keys = nil

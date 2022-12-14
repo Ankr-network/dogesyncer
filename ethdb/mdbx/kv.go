@@ -88,9 +88,7 @@ func (d *MdbxDB) Close() error {
 }
 
 func (d *MdbxDB) Batch() ethdb.Batch {
-	mdb := mdbBuf.Get().(*MemDB)
-	mdb.Reset()
-	return &KVBatch{env: d.env, dbi: d.dbi, db: mdb}
+	return &KVBatch{env: d.env, dbi: d.dbi, db: d.cache}
 }
 
 func (d *MdbxDB) Remove(dbi string, k []byte) error {
