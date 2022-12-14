@@ -114,6 +114,8 @@ func (b *Blockchain) SelfCheck() {
 		newheader, _ = b.GetHeaderByNumber(header.Number - 1)
 	}
 
+	fmt.Printf("header number: %+v \n", header)
+
 	// issue: when restart , missing state
 	for index := header.Number; index > 0; index-- {
 		newheader, _ = b.GetHeaderByNumber(index)
