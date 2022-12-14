@@ -187,6 +187,7 @@ func (d *MdbxDB) syncPeriod() {
 
 		tx.Commit()
 		runtime.UnlockOSThread()
+		iter.Release()
 
 		for _, key := range keys {
 			d.cache.Delete(key)

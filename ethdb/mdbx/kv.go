@@ -78,6 +78,7 @@ func (d *MdbxDB) Close() error {
 	}
 	tx.Commit()
 	runtime.UnlockOSThread()
+	iter.Release()
 
 	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
