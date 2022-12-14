@@ -18,6 +18,7 @@ type NewValue struct {
 }
 
 type MdbxDB struct {
+	lock    sync.Mutex
 	logger  hclog.Logger
 	path    string
 	env     *mdbx.Env
@@ -152,7 +153,10 @@ func NewMDBX(path string) *MdbxDB {
 func (d *MdbxDB) syncPeriod() {
 	tick := time.Tick(30 * time.Second)
 	for range tick {
+
+		d.lock.Lock()
 		d.cache, d.bkCache = d.bkCache, d.cache
+		d.lock.Unlock()
 
 		runtime.LockOSThread()
 		tx, err := d.env.BeginTxn(nil, 0)

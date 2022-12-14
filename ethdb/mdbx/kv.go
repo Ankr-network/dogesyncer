@@ -10,6 +10,8 @@ import (
 )
 
 func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
+
+	d.lock.Lock()
 	buf := strbuf.Get().(*bytes.Buffer)
 	buf.Reset()
 	buf.WriteString(dbi)
@@ -24,6 +26,8 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 		d.cache.Put(buf.Bytes(), v)
 	}
 	strbuf.Put(buf)
+	d.lock.Unlock()
+
 	return nil
 }
 
