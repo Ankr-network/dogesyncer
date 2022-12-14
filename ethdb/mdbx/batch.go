@@ -1,36 +1,29 @@
 package mdbx
 
 import (
+	"bytes"
 	"runtime"
 
+	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
-type keyvalue struct {
-	dbi   string
-	key   []byte
-	value []byte
-}
-
 // KVBatch is a batch write for leveldb
 type KVBatch struct {
-	env    *mdbx.Env
-	dbi    map[string]mdbx.DBI
-	writes []keyvalue
-}
-
-func copyBytes(b []byte) (copiedBytes []byte) {
-	if b == nil {
-		return nil
-	}
-	copiedBytes = make([]byte, len(b))
-	copy(copiedBytes, b)
-
-	return
+	env *mdbx.Env
+	dbi map[string]mdbx.DBI
+	db  *MemDB
 }
 
 func (b *KVBatch) Set(dbi string, k, v []byte) error {
-	b.writes = append(b.writes, keyvalue{dbi, copyBytes(k), copyBytes(v)})
+
+	buf := strbuf.Get().(*bytes.Buffer)
+	buf.Reset()
+	buf.WriteString(dbi)
+	buf.Write(k)
+	b.db.Put(buf.Bytes(), v)
+	strbuf.Put(buf)
+
 	return nil
 }
 
@@ -38,23 +31,22 @@ func (b *KVBatch) Set(dbi string, k, v []byte) error {
 func (b *KVBatch) Write() error {
 
 	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
 	tx, err := b.env.BeginTxn(nil, 0)
 	if err != nil {
 		panic(err)
 	}
-
-	defer func() {
-		tx.Commit()
-	}()
-
-	for _, keyvalue := range b.writes {
-		err = tx.Put(b.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
+	iter := b.db.NewIterator(nil)
+	for iter.Next() {
+		err = tx.Put(b.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
 		if err != nil {
 			panic(err)
 		}
 	}
+
+	tx.Commit()
+	runtime.UnlockOSThread()
+
+	mdbBuf.Put(b.db)
 
 	return nil
 }

@@ -3,28 +3,19 @@ package mdbx
 import (
 	"bytes"
 	"runtime"
-	"time"
 
 	"github.com/sunvim/dogesyncer/ethdb"
+	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
-
-	nv := nvpool.Get().(*NewValue)
-	nv.Reset()
-	nv.Dbi = dbi
-	nv.Key = k
-	nv.Val = v
-	nv.life = time.Now().Unix()
-
 	buf := strbuf.Get().(*bytes.Buffer)
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
-	d.cache.Set(buf.String(), nv)
+	d.cache.Put(buf.Bytes(), v)
 	strbuf.Put(buf)
-
 	return nil
 }
 
@@ -35,16 +26,11 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	buf.WriteString(dbi)
 	buf.Write(k)
 
-	var (
-		nv *NewValue
-		ok bool
-	)
-
 	// query from cache
-	nv, ok = d.cache.Get(buf.String())
+	nvs, err := d.cache.Get(buf.Bytes())
 	strbuf.Put(buf)
-	if ok {
-		return nv.Val, true, nil
+	if err == nil {
+		return nvs, true, nil
 	}
 
 	var (
@@ -86,10 +72,10 @@ func (d *MdbxDB) Close() error {
 	if err != nil {
 		panic(err)
 	}
-	d.cache.Range(func(s string, nv *NewValue) bool {
-		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
-		return true
-	})
+	iter := d.cache.NewIterator(nil)
+	for iter.Next() {
+		tx.Put(d.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
+	}
 	tx.Commit()
 	runtime.UnlockOSThread()
 
@@ -102,7 +88,9 @@ func (d *MdbxDB) Close() error {
 }
 
 func (d *MdbxDB) Batch() ethdb.Batch {
-	return &KVBatch{env: d.env, dbi: d.dbi}
+	mdb := mdbBuf.Get().(*MemDB)
+	mdb.Reset()
+	return &KVBatch{env: d.env, dbi: d.dbi, db: mdb}
 }
 
 func (d *MdbxDB) Remove(dbi string, k []byte) error {

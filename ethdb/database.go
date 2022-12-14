@@ -4,16 +4,15 @@ import "fmt"
 
 var (
 	TrieDBI     = "trie"
-	BodyDBI     = "block"
+	BodyDBI     = "blck"
 	HeadDBI     = "head"
-	AssistDBI   = "assist"
-	NumHashDBI  = "numhash"
+	AssistDBI   = "assi"
+	NumHashDBI  = "nuha"
 	TxesDBI     = "txes"
-	ReceiptsDBI = "receipts"
-	TDDBI       = "td"    // total difficulty
-	SnapDBI     = "snap"  // consensus snapshot
-	QueueDBI    = "queue" // cache sync block
-	CodeDBI     = "code"  // save contract code
+	ReceiptsDBI = "rept"
+	TDDBI       = "todi" // total difficulty
+	SnapDBI     = "snap" // consensus snapshot
+	CodeDBI     = "code" // save contract code
 )
 
 var (

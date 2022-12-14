@@ -2,33 +2,44 @@ package mdbx
 
 import (
 	"bytes"
+	"encoding/binary"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/cornelk/hashmap"
 	"github.com/sunvim/dogesyncer/ethdb"
+	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 type NewValue struct {
-	Dbi  string
-	Key  []byte
-	Val  []byte
 	life int64
+	Val  []byte
+}
+
+func (nv *NewValue) Marshal() []byte {
+	rs := make([]byte, 8)
+	binary.BigEndian.PutUint64(rs, uint64(nv.life))
+	rs = append(rs, nv.Val...)
+	return rs
+}
+
+func (nv *NewValue) Unmarshal(input []byte) error {
+	life := binary.BigEndian.Uint64(input[:8])
+	nv.life = int64(life)
+	nv.Val = input[8:]
+	return nil
 }
 
 func (nv *NewValue) Reset() {
-	nv.Dbi = ""
-	nv.Key = nil
-	nv.Val = nil
 	nv.life = 0
+	nv.Val = nil
 }
 
 type MdbxDB struct {
 	path  string
 	env   *mdbx.Env
-	cache *hashmap.Map[string, *NewValue]
+	cache *MemDB
 	dbi   map[string]mdbx.DBI
 }
 
@@ -45,6 +56,12 @@ var (
 		},
 	}
 
+	mdbBuf = sync.Pool{
+		New: func() any {
+			return New(1 << 20)
+		},
+	}
+
 	defaultFlags = mdbx.Durable | mdbx.NoReadahead | mdbx.Coalesce
 
 	dbis = []string{
@@ -57,9 +74,12 @@ var (
 		ethdb.TDDBI,
 		ethdb.ReceiptsDBI,
 		ethdb.SnapDBI,
-		ethdb.QueueDBI,
 		ethdb.CodeDBI,
 	}
+)
+
+const (
+	cacheSize = 1 << 29
 )
 
 func NewMDBX(path string) *MdbxDB {
@@ -126,58 +146,52 @@ func NewMDBX(path string) *MdbxDB {
 	env.Update(func(txn *mdbx.Txn) error {
 		// create or open all dbi
 		for _, dbiName := range dbis {
-			dbi, err := txn.CreateDBI(dbiName)
+			dbi, err := txn.CreateDBI(string(dbiName))
 			if err != nil {
 				panic(err)
 			}
-			d.dbi[dbiName] = dbi
+			d.dbi[string(dbiName)] = dbi
 		}
 		return nil
 
 	})
 
-	// flush data to database
-	d.cache = hashmap.New[string, *NewValue]()
+	d.cache = New(cacheSize)
+
 	go d.syncPeriod()
 
 	return d
 }
 
-const (
-	fiveMin = 5 * 60
-)
-
 func (d *MdbxDB) syncPeriod() {
 	tick := time.Tick(2 * time.Minute)
 	for range tick {
-		m := make(map[string]*NewValue)
-		d.cache.Range(func(s string, nv *NewValue) bool {
-			m[s] = nv
-			return true
-		})
+
+		var keys [][]byte
 
 		runtime.LockOSThread()
 		tx, err := d.env.BeginTxn(nil, 0)
 		if err != nil {
 			panic(err)
 		}
-		for _, v := range m {
-			_, err = tx.Get(d.dbi[v.Dbi], v.Key)
+		iter := d.cache.NewIterator(nil)
+		for iter.Next() {
+			dbiName := helper.B2S(iter.key[:4])
+			_, err = tx.Get(d.dbi[dbiName], iter.key[4:])
 			if err == nil {
+				keys = append(keys, iter.key[4:])
 				continue
 			}
-			tx.Put(d.dbi[v.Dbi], v.Key, v.Val, mdbx.Upsert)
+			tx.Put(d.dbi[dbiName], iter.key[4:], iter.value, 0)
 		}
+
 		tx.Commit()
 		runtime.UnlockOSThread()
 
-		curNow := time.Now().Unix()
-		for key, val := range m {
-			if curNow-val.life > fiveMin {
-				d.cache.Del(key)
-				nvpool.Put(val)
-			}
+		for _, key := range keys {
+			d.cache.Delete(key)
 		}
-		m = nil
+
+		keys = nil
 	}
 }
