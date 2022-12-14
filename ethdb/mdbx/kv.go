@@ -14,7 +14,15 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
-	d.cache.Put(buf.Bytes(), v)
+	if dbi == ethdb.AssistDBI {
+		nv, ok := d.asist[buf.String()]
+		if ok {
+			nv.Val = v
+		}
+		d.asist[buf.String()] = &NewValue{Dbi: dbi, Val: v}
+	} else {
+		d.cache.Put(buf.Bytes(), v)
+	}
 	strbuf.Put(buf)
 	return nil
 }
@@ -27,10 +35,23 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	buf.Write(k)
 
 	// query from cache
-	nvs, err := d.cache.Get(buf.Bytes())
-	strbuf.Put(buf)
-	if err == nil {
-		return nvs, true, nil
+	if dbi == ethdb.AssistDBI {
+		nv, ok := d.asist[buf.String()]
+		if ok {
+			return nv.Val, true, nil
+		}
+	} else {
+		nvs, err := d.cache.Get(buf.Bytes())
+		strbuf.Put(buf)
+		if err == nil {
+			return nvs, true, nil
+		}
+
+		nvs, err = d.bkCache.Get(buf.Bytes())
+		strbuf.Put(buf)
+		if err == nil {
+			return nvs, true, nil
+		}
 	}
 
 	var (
@@ -76,6 +97,11 @@ func (d *MdbxDB) Close() error {
 	for iter.Next() {
 		tx.Put(d.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
 	}
+
+	for k, v := range d.asist {
+		tx.Put(d.dbi[v.Dbi], helper.S2B(k)[4:], v.Val, 0)
+	}
+
 	tx.Commit()
 	runtime.UnlockOSThread()
 	iter.Release()
