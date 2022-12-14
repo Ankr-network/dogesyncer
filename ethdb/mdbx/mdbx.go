@@ -144,27 +144,13 @@ func NewMDBX(path string) *MdbxDB {
 	d.bkCache = New(cacheSize)
 	d.asist = make(map[string]*NewValue)
 
-	env.View(func(txn *mdbx.Txn) error {
-		cur, err := txn.OpenCursor(d.dbi[ethdb.AssistDBI])
-		if err != nil {
-			panic(err)
-		}
-		defer cur.Close()
-
-		for key, val, _ := cur.Get(nil, nil, mdbx.First); key != nil; key, val, _ = cur.Get(nil, nil, mdbx.Next) {
-			d.Set(ethdb.AssistDBI, key, val)
-		}
-
-		return nil
-	})
-
 	go d.syncPeriod()
 
 	return d
 }
 
 func (d *MdbxDB) syncPeriod() {
-	tick := time.Tick(30 * time.Second)
+	tick := time.Tick(45 * time.Second)
 	for range tick {
 
 		d.cache, d.bkCache = d.bkCache, d.cache
