@@ -21,7 +21,6 @@ type MdbxDB struct {
 	logger  hclog.Logger
 	path    string
 	env     *mdbx.Env
-	asist   map[string]*NewValue
 	cache   *MemDB
 	bkCache *MemDB
 	dbi     map[string]mdbx.DBI
@@ -142,7 +141,6 @@ func NewMDBX(path string) *MdbxDB {
 
 	d.cache = New(cacheSize)
 	d.bkCache = New(cacheSize)
-	d.asist = make(map[string]*NewValue)
 
 	go d.syncPeriod()
 

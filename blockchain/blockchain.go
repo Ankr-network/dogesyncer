@@ -3,7 +3,6 @@ package blockchain
 import (
 	"fmt"
 	"math/big"
-	"os"
 	"sync"
 	"sync/atomic"
 
@@ -125,12 +124,8 @@ func (b *Blockchain) SelfCheck() {
 		}
 	}
 
-	fmt.Printf("header: %+v \n", newheader)
-	if newheader != nil {
-		rawdb.WriteHeadHash(b.chaindb, newheader.Hash)
-		rawdb.WriteHeadNumber(b.chaindb, newheader.Number)
-	}
-	os.Exit(1)
+	rawdb.WriteHeadHash(b.chaindb, newheader.Hash)
+	rawdb.WriteHeadNumber(b.chaindb, newheader.Number)
 }
 
 func (b *Blockchain) CurrentTD() *big.Int {
