@@ -18,7 +18,6 @@ type NewValue struct {
 }
 
 type MdbxDB struct {
-	lock    sync.Mutex
 	logger  hclog.Logger
 	path    string
 	env     *mdbx.Env
@@ -145,6 +144,20 @@ func NewMDBX(path string) *MdbxDB {
 	d.bkCache = New(cacheSize)
 	d.asist = make(map[string]*NewValue)
 
+	env.View(func(txn *mdbx.Txn) error {
+		cur, err := txn.OpenCursor(d.dbi[ethdb.AssistDBI])
+		if err != nil {
+			panic(err)
+		}
+		defer cur.Close()
+
+		for key, val, _ := cur.Get(nil, nil, mdbx.First); key != nil; key, val, _ = cur.Get(nil, nil, mdbx.Next) {
+			d.Set(ethdb.AssistDBI, key, val)
+		}
+
+		return nil
+	})
+
 	go d.syncPeriod()
 
 	return d
@@ -154,9 +167,7 @@ func (d *MdbxDB) syncPeriod() {
 	tick := time.Tick(30 * time.Second)
 	for range tick {
 
-		d.lock.Lock()
 		d.cache, d.bkCache = d.bkCache, d.cache
-		d.lock.Unlock()
 
 		runtime.LockOSThread()
 		tx, err := d.env.BeginTxn(nil, 0)
