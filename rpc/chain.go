@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (s *RpcServer) GetBlockNumber(method string, params ...any) any {
+func (s *RpcServer) GetBlockNumber(method string, params ...any) (any, Error) {
 	num := strconv.FormatInt(int64(s.blockchain.Header().Number), 16)
-	return strings.Join([]string{"0x", num}, "")
+	return strings.Join([]string{"0x", num}, ""), nil
 }

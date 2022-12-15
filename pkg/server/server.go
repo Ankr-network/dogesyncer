@@ -227,3 +227,18 @@ func (s *Server) Close() error {
 	return nil
 
 }
+
+type jsonRPCHub struct {
+	// state state.State
+	// restoreProgression *progress.ProgressionWrapper
+
+	// *blockchain.Blockchain
+	// *txpool.TxPool
+	// *state.Executor
+	*network.Server
+	// consensus.Consensus
+}
+
+func (j *jsonRPCHub) GetPeers() int {
+	return len(j.Server.Peers())
+}

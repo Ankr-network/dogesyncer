@@ -34,15 +34,15 @@ func (gp *GetBalanceParams) Unmarshal(params ...any) error {
 }
 
 // not support "earliest" and "pending"
-func (s *RpcServer) GetBalance(method string, params ...any) any {
+func (s *RpcServer) GetBalance(method string, params ...any) (any, Error) {
 	var gp *GetBalanceParams
 	err := gp.Unmarshal(params...)
 	if err != nil {
-		return err
+		return nil, NewInternalError(err.Error())
 	}
 	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return fmt.Errorf("not support pending and earliest block query")
+		return nil, NewInternalError("not support pending and earliest block query")
 	}
 
-	return nil
+	return nil, nil
 }

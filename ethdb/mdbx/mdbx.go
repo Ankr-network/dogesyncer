@@ -2,28 +2,45 @@ package mdbx
 
 import (
 	"bytes"
+	"encoding/binary"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/sunvim/dogesyncer/ethdb"
 	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 type NewValue struct {
-	Dbi string
-	Val []byte
+	life int64
+	Val  []byte
+}
+
+func (nv *NewValue) Marshal() []byte {
+	rs := make([]byte, 8)
+	binary.BigEndian.PutUint64(rs, uint64(nv.life))
+	rs = append(rs, nv.Val...)
+	return rs
+}
+
+func (nv *NewValue) Unmarshal(input []byte) error {
+	life := binary.BigEndian.Uint64(input[:8])
+	nv.life = int64(life)
+	nv.Val = input[8:]
+	return nil
+}
+
+func (nv *NewValue) Reset() {
+	nv.life = 0
+	nv.Val = nil
 }
 
 type MdbxDB struct {
-	logger  hclog.Logger
-	path    string
-	env     *mdbx.Env
-	cache   *MemDB
-	bkCache *MemDB
-	dbi     map[string]mdbx.DBI
+	path  string
+	env   *mdbx.Env
+	cache *MemDB
+	dbi   map[string]mdbx.DBI
 }
 
 var (
@@ -140,7 +157,6 @@ func NewMDBX(path string) *MdbxDB {
 	})
 
 	d.cache = New(cacheSize)
-	d.bkCache = New(cacheSize)
 
 	go d.syncPeriod()
 
@@ -148,29 +164,34 @@ func NewMDBX(path string) *MdbxDB {
 }
 
 func (d *MdbxDB) syncPeriod() {
-	tick := time.Tick(45 * time.Second)
+	tick := time.Tick(2 * time.Minute)
 	for range tick {
 
-		d.cache, d.bkCache = d.bkCache, d.cache
+		var keys [][]byte
 
 		runtime.LockOSThread()
 		tx, err := d.env.BeginTxn(nil, 0)
 		if err != nil {
 			panic(err)
 		}
-		iter := d.bkCache.NewIterator(nil)
+		iter := d.cache.NewIterator(nil)
 		for iter.Next() {
 			dbiName := helper.B2S(iter.key[:4])
 			_, err = tx.Get(d.dbi[dbiName], iter.key[4:])
 			if err == nil {
+				keys = append(keys, iter.key[4:])
 				continue
 			}
 			tx.Put(d.dbi[dbiName], iter.key[4:], iter.value, 0)
 		}
+
 		tx.Commit()
 		runtime.UnlockOSThread()
-		iter.Release()
 
-		d.bkCache.Reset()
+		for _, key := range keys {
+			d.cache.Delete(key)
+		}
+
+		keys = nil
 	}
 }

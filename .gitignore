@@ -14,3 +14,10 @@ bin/
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+genesis.json
+
+data/
+
+# Mac os unuse file
+.DS_Store

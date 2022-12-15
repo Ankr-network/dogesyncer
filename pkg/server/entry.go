@@ -28,7 +28,11 @@ func Run(cmd *cobra.Command, args []string) {
 	syncer := protocol.NewSyncer(m.logger, m.network, m.blockchain, serverConfig.DataDir)
 	syncer.Start(ctx)
 
-	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort)
+	hub := &jsonRPCHub{
+		Server: m.network,
+	}
+
+	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
 	rpcServer.Start(ctx)
 
 	m.logger.Info("server boot over...")

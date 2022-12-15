@@ -16,7 +16,6 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	buf.Write(k)
 	d.cache.Put(buf.Bytes(), v)
 	strbuf.Put(buf)
-
 	return nil
 }
 
@@ -29,12 +28,6 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 
 	// query from cache
 	nvs, err := d.cache.Get(buf.Bytes())
-	strbuf.Put(buf)
-	if err == nil {
-		return nvs, true, nil
-	}
-
-	nvs, err = d.bkCache.Get(buf.Bytes())
 	strbuf.Put(buf)
 	if err == nil {
 		return nvs, true, nil
@@ -83,10 +76,8 @@ func (d *MdbxDB) Close() error {
 	for iter.Next() {
 		tx.Put(d.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
 	}
-
 	tx.Commit()
 	runtime.UnlockOSThread()
-	iter.Release()
 
 	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
@@ -97,7 +88,9 @@ func (d *MdbxDB) Close() error {
 }
 
 func (d *MdbxDB) Batch() ethdb.Batch {
-	return &KVBatch{env: d.env, dbi: d.dbi, db: d.cache}
+	mdb := mdbBuf.Get().(*MemDB)
+	mdb.Reset()
+	return &KVBatch{env: d.env, dbi: d.dbi, db: mdb}
 }
 
 func (d *MdbxDB) Remove(dbi string, k []byte) error {

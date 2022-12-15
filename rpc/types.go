@@ -9,7 +9,7 @@ import (
 	"github.com/sunvim/dogesyncer/types"
 )
 
-type RpcFunc func(method string, params ...any) any
+type RpcFunc func(method string, params ...any) (any, Error)
 
 type Request struct {
 	Version string `json:"jsonrpc,omitempty"`
@@ -24,6 +24,12 @@ type Response struct {
 	Result  any    `json:"result"`
 }
 
+type ErrorResponse struct {
+	ID      any    `json:"id"`
+	Version string `json:"jsonrpc"`
+	Error   any    `json:"error"`
+}
+
 var (
 	reqPool = &sync.Pool{
 		New: func() any {
@@ -34,6 +40,12 @@ var (
 	resPool = &sync.Pool{
 		New: func() any {
 			return &Response{}
+		},
+	}
+
+	resErrorPool = &sync.Pool{
+		New: func() any {
+			return &ErrorResponse{}
 		},
 	}
 )
