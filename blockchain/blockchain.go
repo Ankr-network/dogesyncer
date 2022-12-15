@@ -843,6 +843,14 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	return rawdb.ReadBlockByHash(b.chaindb, blkHash)
 }
 
+func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
+	txn, err := rawdb.ReadTransaction(b.chaindb, hash)
+	if err != nil {
+		return nil, false
+	}
+	return txn, true
+}
+
 // SubscribeEvents returns a blockchain event subscription
 func (b *Blockchain) SubscribeEvents() Subscription {
 	return b.stream.subscribe()
@@ -862,9 +870,10 @@ func (b *Blockchain) GetAvgGasPrice() *big.Int {
 
 // GetBlockByHash returns the block using the block hash
 func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
-	if b.isStopped() {
-		return nil, false
-	}
+	fmt.Println("THIS START", hash)
+	// if b.isStopped() {
+	// 	return nil, false
+	// }
 
 	b.wg.Add(1)
 	defer b.wg.Done()
