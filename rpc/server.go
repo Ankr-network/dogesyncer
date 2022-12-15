@@ -108,8 +108,6 @@ func (s *RpcServer) Start(ctx context.Context) error {
 
 func (s *RpcServer) initmethods() {
 	s.routers = map[string]RpcFunc{
-		"eth_blockNumber": s.GetBlockNumber,
-		"eth_getBalance":  s.GetBalance,
 
 		"web3_clientVersion": s.Web3ClientVersion,
 		"web3_sha3":          s.Web3Sha3,
@@ -117,7 +115,9 @@ func (s *RpcServer) initmethods() {
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
 
-		"eth_syncing": s.EthSyncing,
+		"eth_syncing":     s.EthSyncing,
+		"eth_gasPrice":    s.EthGasPrice,
+		"eth_blockNumber": s.GetBlockNumber,
 	}
 }
 

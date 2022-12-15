@@ -2,12 +2,18 @@ package rpc
 
 import (
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/sunvim/dogesyncer/helper/hex"
 	"github.com/sunvim/dogesyncer/helper/progress"
 	"github.com/sunvim/dogesyncer/state"
 	"github.com/sunvim/dogesyncer/state/runtime"
 	"github.com/sunvim/dogesyncer/types"
+)
+
+const (
+	defaultMinGasPrice = "0Xba43b7400" // 50 GWei
 )
 
 type ethBlockchainStore interface {
@@ -55,7 +61,7 @@ type Eth struct {
 	store ethStore
 	// chainID uint64
 	// filterManager *FilterManager
-	// priceLimit uint64
+	priceLimit uint64
 }
 
 func (e *Eth) Syncing() (interface{}, error) {
@@ -74,10 +80,45 @@ func (e *Eth) Syncing() (interface{}, error) {
 	return false, nil
 }
 
+// GasPrice returns the average gas price based on the last x blocks
+func (e *Eth) GasPrice() (interface{}, error) {
+	// var avgGasPrice string
+	// Grab the average gas price and convert it to a hex value
+	priceLimit := new(big.Int).SetUint64(e.priceLimit)
+	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
+
+	if priceLimit.Cmp(minGasPrice) == -1 {
+		priceLimit = minGasPrice
+	}
+
+	// if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
+	// 	avgGasPrice = hex.EncodeBig(minGasPrice)
+	// } else {
+	// 	avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
+	// }
+
+	// return avgGasPrice, nil
+
+	return hex.EncodeBig(priceLimit), nil
+}
+
 func (s *RpcServer) EthSyncing(method string, params ...any) (any, Error) {
 	res, err := s.endpoints.Eth.Syncing()
 	if err != nil {
 		return nil, NewInternalError(err.Error())
 	}
 	return res, nil
+}
+
+func (s *RpcServer) EthGasPrice(method string, params ...any) (any, Error) {
+	res, err := s.endpoints.Eth.GasPrice()
+	if err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+	return res, nil
+}
+
+func (s *RpcServer) GetBlockNumber(method string, params ...any) (any, Error) {
+	num := strconv.FormatInt(int64(s.blockchain.Header().Number), 16)
+	return strings.Join([]string{"0x", num}, ""), nil
 }
