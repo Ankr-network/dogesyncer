@@ -18,34 +18,22 @@ type NewValue struct {
 }
 
 type MdbxDB struct {
-	logger  hclog.Logger
-	path    string
-	env     *mdbx.Env
-	cache   *MemDB
-	bkCache *MemDB
-	dbi     map[string]mdbx.DBI
+	logger hclog.Logger
+	path   string
+	env    *mdbx.Env
+	cache  *MemDB
+	dbi    map[string]mdbx.DBI
+	stopCh chan struct{}
 }
 
 var (
-	nvpool = sync.Pool{
-		New: func() any {
-			return &NewValue{}
-		},
-	}
-
 	strbuf = sync.Pool{
 		New: func() any {
 			return bytes.NewBuffer([]byte{})
 		},
 	}
 
-	mdbBuf = sync.Pool{
-		New: func() any {
-			return New(1 << 20)
-		},
-	}
-
-	defaultFlags = mdbx.Durable | mdbx.NoReadahead | mdbx.Coalesce
+	defaultFlags = mdbx.Durable | mdbx.NoReadahead | mdbx.Coalesce | mdbx.NoMemInit
 
 	dbis = []string{
 		ethdb.BodyDBI,
@@ -62,17 +50,21 @@ var (
 )
 
 const (
-	cacheSize = 1 << 29
+	cacheSize = 1 << 28
 )
 
-func NewMDBX(path string) *MdbxDB {
+func NewMDBX(path string, logger hclog.Logger) *MdbxDB {
 
 	env, err := mdbx.NewEnv()
 	if err != nil {
 		panic(err)
 	}
 
-	if err := env.SetOption(mdbx.OptMaxDB, 32); err != nil {
+	if err := env.SetOption(mdbx.OptMaxDB, 512); err != nil {
+		panic(err)
+	}
+
+	if err := env.SetGeometry(-1, -1, 2*(1<<40), 1<<21, -1, 1<<12); err != nil {
 		panic(err)
 	}
 
@@ -81,6 +73,11 @@ func NewMDBX(path string) *MdbxDB {
 	}
 
 	if err := env.SetOption(mdbx.OptMaxReaders, 32000); err != nil {
+		panic(err)
+	}
+
+	// open database
+	if err = env.Open(path, uint(defaultFlags), 0664); err != nil {
 		panic(err)
 	}
 
@@ -93,6 +90,10 @@ func NewMDBX(path string) *MdbxDB {
 		panic(err)
 	}
 	if err = env.SetOption(mdbx.OptTxnDpInitial, txnDpInitial*2); err != nil {
+		panic(err)
+	}
+
+	if err = env.SetSyncPeriod(3 * time.Second); err != nil {
 		panic(err)
 	}
 
@@ -112,17 +113,11 @@ func NewMDBX(path string) *MdbxDB {
 		panic(err)
 	}
 
-	if err := env.SetGeometry(-1, -1, 1<<43, 1<<30, -1, 1<<14); err != nil {
-		panic(err)
-	}
-
-	if err = env.Open(path, uint(defaultFlags), 0664); err != nil {
-		panic(err)
-	}
-
 	d := &MdbxDB{
-		path: path,
-		dbi:  make(map[string]mdbx.DBI),
+		path:   path,
+		logger: logger,
+		dbi:    make(map[string]mdbx.DBI),
+		stopCh: make(chan struct{}),
 	}
 	d.env = env
 
@@ -140,37 +135,38 @@ func NewMDBX(path string) *MdbxDB {
 	})
 
 	d.cache = New(cacheSize)
-	d.bkCache = New(cacheSize)
-
-	go d.syncPeriod()
 
 	return d
 }
 
-func (d *MdbxDB) syncPeriod() {
-	tick := time.Tick(45 * time.Second)
-	for range tick {
+func (d *MdbxDB) syncCache() {
 
-		d.cache, d.bkCache = d.bkCache, d.cache
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 
-		runtime.LockOSThread()
-		tx, err := d.env.BeginTxn(nil, 0)
-		if err != nil {
-			panic(err)
-		}
-		iter := d.bkCache.NewIterator(nil)
-		for iter.Next() {
-			dbiName := helper.B2S(iter.key[:4])
-			_, err = tx.Get(d.dbi[dbiName], iter.key[4:])
-			if err == nil {
-				continue
-			}
-			tx.Put(d.dbi[dbiName], iter.key[4:], iter.value, 0)
-		}
-		tx.Commit()
-		runtime.UnlockOSThread()
-		iter.Release()
-
-		d.bkCache.Reset()
+	keyNums := 0
+	stx := time.Now()
+	tx, err := d.env.BeginTxn(nil, 0)
+	if err != nil {
+		return
 	}
+	iter := d.cache.NewIterator(nil)
+	for iter.Next() {
+		dbiName := helper.B2S(iter.key[:4])
+		tx.Put(d.dbi[dbiName], iter.key[4:], iter.value, 0)
+		keyNums++
+	}
+	inf, _ := d.env.Info(tx)
+	tx.Commit()
+	d.env.Sync(true, false)
+	iter.Release()
+	d.cache.Reset()
+
+	d.logger.Info("stats",
+		"elapse", time.Since(stx),
+		"commit keys", keyNums,
+		"max readers", inf.MaxReaders,
+		"auto sync", inf.AutosyncPeriod,
+		"since sync", inf.SinceSync,
+		"num readers", inf.NumReaders)
 }

@@ -3,6 +3,9 @@ package server
 import (
 	"context"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/spf13/cobra"
 	"github.com/sunvim/dogesyncer/protocol"
 	"github.com/sunvim/dogesyncer/rpc"
@@ -22,14 +25,19 @@ func Run(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	svc.Register(m.Close)
-
 	m.logger.Info("start to syncer")
 	syncer := protocol.NewSyncer(m.logger, m.network, m.blockchain, serverConfig.DataDir)
 	syncer.Start(ctx)
 
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort)
 	rpcServer.Start(ctx)
+
+	go func() {
+		http.ListenAndServe("0.0.0.0:6060", nil)
+	}()
+
+	svc.Register(syncer.Close)
+	svc.Register(m.Close)
 
 	m.logger.Info("server boot over...")
 	svc.Wait()

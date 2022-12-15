@@ -83,7 +83,7 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 
 	// create database
 
-	db := mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"))
+	db := mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"), logger.Named("mdbx"))
 
 	// start blockchain object
 	stateStorage, err := func() (itrie.Storage, error) {
