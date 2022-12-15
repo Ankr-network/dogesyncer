@@ -147,3 +147,11 @@ func (b *BlockNumber) UnmarshalJSON(buffer []byte) error {
 
 	return nil
 }
+
+type progression struct {
+	Type          string `json:"type"`
+	SyncingPeer   string `json:"syncingPeer"`
+	StartingBlock string `json:"startingBlock"`
+	CurrentBlock  string `json:"currentBlock"`
+	HighestBlock  string `json:"highestBlock"`
+}

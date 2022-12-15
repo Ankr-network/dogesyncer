@@ -1,6 +1,8 @@
 package rpc
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // networkStore provides methods needed for Net endpoint
 type networkStore interface {
@@ -28,4 +30,28 @@ func (n *Net) PeerCount() (interface{}, error) {
 	peers := n.store.GetPeers()
 
 	return strconv.FormatInt(int64(peers), 10), nil
+}
+
+func (s *RpcServer) NetVersion(method string, params ...any) (any, Error) {
+	res, err := s.endpoints.Net.Version()
+	if err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+	return res, nil
+}
+
+func (s *RpcServer) NetListening(method string, params ...any) (any, Error) {
+	res, err := s.endpoints.Net.Listening()
+	if err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+	return res, nil
+}
+
+func (s *RpcServer) NetPeerCount(method string, params ...any) (any, Error) {
+	res, err := s.endpoints.Net.PeerCount()
+	if err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+	return res, nil
 }

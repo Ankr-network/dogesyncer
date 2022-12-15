@@ -44,7 +44,6 @@ func (s *RpcServer) Web3ClientVersion(method string, params ...any) (any, Error)
 }
 
 func (s *RpcServer) Web3Sha3(method string, params ...any) (any, Error) {
-	fmt.Println("params", params)
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
 		return nil, err

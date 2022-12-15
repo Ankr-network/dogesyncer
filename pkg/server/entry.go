@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/spf13/cobra"
+	"github.com/sunvim/dogesyncer/helper/progress"
 	"github.com/sunvim/dogesyncer/protocol"
 	"github.com/sunvim/dogesyncer/rpc"
 	"github.com/sunvim/utils/grace"
@@ -29,7 +30,10 @@ func Run(cmd *cobra.Command, args []string) {
 	syncer.Start(ctx)
 
 	hub := &jsonRPCHub{
-		Server: m.network,
+		Server:             m.network,
+		restoreProgression: progress.NewProgressionWrapper(progress.ChainSyncRestore),
+		Blockchain:         m.blockchain,
+		Executor:           m.executor,
 	}
 
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort, hub)

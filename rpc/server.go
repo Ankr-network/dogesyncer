@@ -11,6 +11,7 @@ import (
 )
 
 type endpoints struct {
+	Eth  *Eth
 	Web3 *Web3
 	Net  *Net
 }
@@ -112,10 +113,18 @@ func (s *RpcServer) initmethods() {
 
 		"web3_clientVersion": s.Web3ClientVersion,
 		"web3_sha3":          s.Web3Sha3,
+
+		"net_version":   s.NetVersion,
+		"net_listening": s.NetListening,
+
+		"eth_syncing": s.EthSyncing,
 	}
 }
 
 func (s *RpcServer) initEndpoints(store JSONRPCStore) {
-	s.endpoints.Net = &Net{store: store}
+	s.endpoints.Net = &Net{store: store, chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Web3 = &Web3{chainID: uint64(s.blockchain.Config().Params.ChainID)}
+	s.endpoints.Eth = &Eth{
+		store: store,
+	}
 }
