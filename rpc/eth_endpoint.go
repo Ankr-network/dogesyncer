@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -139,8 +140,24 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	if err != nil {
 		return nil, err
 	}
-	// res, errWbe3 := s.endpoints.Eth.GetBlockByHash(types.StringToHash(paramsIn[0]), true)
-	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0]), true)
+	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0].(string)), paramsIn[1].(bool))
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
+	}
+	return toBlock(res, true), nil
+}
+
+func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	blockHeight, strconvErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[0].(string), "0x"), 10, 64)
+	if strconvErr != nil {
+		fmt.Println("strconvErr", strconvErr)
+		return nil, NewInvalidRequestError(err.Error())
+	}
+	res, ok := s.blockchain.GetBlockByNumber(blockHeight, paramsIn[1].(bool))
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}

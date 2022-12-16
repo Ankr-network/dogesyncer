@@ -115,10 +115,11 @@ func (s *RpcServer) initmethods() {
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
 
-		"eth_syncing":        s.EthSyncing,
-		"eth_gasPrice":       s.EthGasPrice,
-		"eth_blockNumber":    s.GetBlockNumber,
-		"eth_getBlockByHash": s.EthGetBlockByHash,
+		"eth_syncing":          s.EthSyncing,
+		"eth_gasPrice":         s.EthGasPrice,
+		"eth_blockNumber":      s.GetBlockNumber,
+		"eth_getBlockByHash":   s.EthGetBlockByHash,
+		"eth_getBlockByNumber": s.EthGetBlockByNumber,
 	}
 }
 

@@ -275,8 +275,8 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	b.logger.Info("new block", logArgs...)
 
-	// res, err := rawdb.ReadBody(b.chaindb, header.ParentHash)
-	// fmt.Println("rawdb params", header.ParentHash)
+	// res, err := rawdb.ReadHeader(b.chaindb, header.Hash)
+	// fmt.Println("rawdb params", header.Hash)
 	// if err != nil {
 	// 	fmt.Println("rawdb error", err)
 	// } else {
@@ -811,7 +811,7 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	if !ok {
 		return nil, false
 	}
-	return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	return b.GetBlockByHash(blkHash, full)
 }
 
 func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
@@ -865,7 +865,7 @@ func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, b
 	// Load the entire block body
 	body, ok := b.readBody(hash)
 	if !ok {
-		return block, false
+		return block, true
 	}
 
 	// Set the transactions and uncles
@@ -895,9 +895,10 @@ func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
 	if err != nil {
 		return nil, false
 	}
+	// fmt.Println("ReadHeader", hh.Difficulty)
 
 	// Compute the header hash and update the cache
-	hh.ComputeHash()
+	// hh.ComputeHash()
 	// b.headersCache.Add(hash, hh)
 
 	return hh, true

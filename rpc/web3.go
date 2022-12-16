@@ -48,7 +48,7 @@ func (s *RpcServer) Web3Sha3(method string, params ...any) (any, Error) {
 	if err != nil {
 		return nil, err
 	}
-	res, errWbe3 := s.endpoints.Web3.Sha3(paramsIn[0])
+	res, errWbe3 := s.endpoints.Web3.Sha3(paramsIn[0].(string))
 	if errWbe3 != nil {
 		return nil, NewInvalidRequestError(errWbe3.Error())
 	}
