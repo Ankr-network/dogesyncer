@@ -104,16 +104,6 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	return hex.EncodeBig(priceLimit), nil
 }
 
-// GetBlockByHash returns information about a block by hash
-func (e *Eth) GetBlockByHash(hash types.Hash, fullTx bool) (interface{}, error) {
-	block, ok := e.store.GetBlockByHash(hash, true)
-	if !ok {
-		return nil, nil
-	}
-
-	return toBlock(block, fullTx), nil
-}
-
 // TODO
 func (e *Eth) GetTransactionByHash(hash types.Hash) (interface{}, error) {
 	_, ok := e.store.GetTxnByHash(hash)
@@ -149,9 +139,10 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	if err != nil {
 		return nil, err
 	}
-	res, errWbe3 := s.endpoints.Eth.GetBlockByHash(types.StringToHash(paramsIn[0]), true)
-	if errWbe3 != nil {
-		return nil, NewInvalidRequestError(errWbe3.Error())
+	// res, errWbe3 := s.endpoints.Eth.GetBlockByHash(types.StringToHash(paramsIn[0]), true)
+	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0]), true)
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	return res, nil
+	return toBlock(res, true), nil
 }

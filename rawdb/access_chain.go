@@ -114,25 +114,7 @@ func WriteBody(db ethdb.Database, hash types.Hash, body *types.Body) error {
 
 }
 
-func ReadBody(db ethdb.Database, hash types.Hash) (*types.Body, error) {
-
-	body := &types.Body{}
-	v, ok, err := db.Get(ethdb.BodyDBI, hash[:])
-	if err != nil {
-		return nil, err
-	}
-
-	if ok {
-		err = body.UnmarshalRLP(v)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return body, nil
-}
-
-func ReadTxsByBlockHash(db ethdb.Database, hash types.Hash) ([]types.Hash, error) {
+func ReadBody(db ethdb.Database, hash types.Hash) ([]types.Hash, error) {
 
 	v, ok, err := db.Get(ethdb.BodyDBI, hash[:])
 	if err != nil {
@@ -194,7 +176,7 @@ func ReadTransaction(db ethdb.Database, hash types.Hash) (*types.Transaction, er
 	return nil, fmt.Errorf("not found tx")
 }
 
-func WriteReceipts(db ethdb.Database, receipts types.Receipts) error {
+func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 	batch := db.Batch()
 
 	for _, rx := range receipts {
@@ -210,7 +192,7 @@ func WriteReceipts(db ethdb.Database, receipts types.Receipts) error {
 	return nil
 }
 
-func WriteReceipt(db ethdb.Database, receipt *types.Receipt) error {
+func WrteReceipt(db ethdb.Database, receipt *types.Receipt) error {
 	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalRLPTo(nil))
 }
 

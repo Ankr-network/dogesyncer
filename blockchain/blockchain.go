@@ -148,7 +148,7 @@ func (b *Blockchain) GetTD(hash types.Hash) (*big.Int, bool) {
 // get receitps by block header hash
 func (b *Blockchain) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error) {
 	// read body
-	bodies, err := rawdb.ReadTxsByBlockHash(b.chaindb, hash)
+	bodies, err := rawdb.ReadBody(b.chaindb, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (b *Blockchain) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error
 
 func (b *Blockchain) GetBodyByHash(hash types.Hash) (*types.Body, bool) {
 	// read body
-	bodies, err := rawdb.ReadTxsByBlockHash(b.chaindb, hash)
+	bodies, err := rawdb.ReadBody(b.chaindb, hash)
 	if err != nil {
 		return nil, false
 	}
@@ -248,7 +248,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		return fmt.Errorf("mismatch state root %s != %s", header.StateRoot, blockResult.Root)
 	}
 
-	err = rawdb.WriteReceipts(b.chaindb, blockResult.Receipts)
+	err = rawdb.WrteReceipts(b.chaindb, blockResult.Receipts)
 	if err != nil {
 		return err
 	}
@@ -274,6 +274,14 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	}
 
 	b.logger.Info("new block", logArgs...)
+
+	// res, err := rawdb.ReadBody(b.chaindb, header.ParentHash)
+	// fmt.Println("rawdb params", header.ParentHash)
+	// if err != nil {
+	// 	fmt.Println("rawdb error", err)
+	// } else {
+	// 	fmt.Println("rawdb res", res)
+	// }
 
 	return nil
 }
@@ -870,16 +878,16 @@ func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, b
 // readHeader Returns the header using the hash
 func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
 	// Try to find a hit in the headers cache
-	h, ok := b.headersCache.Get(hash)
-	if ok {
-		// Hit, return the3 header
-		header, ok := h.(*types.Header)
-		if !ok {
-			return nil, false
-		}
+	// h, ok := b.headersCache.Get(hash)
+	// if ok {
+	// 	// Hit, return the3 header
+	// 	header, ok := h.(*types.Header)
+	// 	if !ok {
+	// 		return nil, false
+	// 	}
 
-		return header, true
-	}
+	// 	return header, true
+	// }
 
 	// Cache miss, load it from the DB
 	// hh, err := b.db.ReadHeader(hash)
@@ -890,22 +898,32 @@ func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
 
 	// Compute the header hash and update the cache
 	hh.ComputeHash()
-	b.headersCache.Add(hash, hh)
+	// b.headersCache.Add(hash, hh)
 
 	return hh, true
 }
 
 // readBody reads the block's body, using the block hash
 func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
-	// bb, err := b.db.ReadBody(hash)
-	bb, err := rawdb.ReadBody(b.chaindb, hash)
+	res := &types.Body{}
+	txsHash, err := rawdb.ReadBody(b.chaindb, hash)
 	if err != nil {
 		b.logger.Error("failed to read body", "err", err)
-
 		return nil, false
 	}
-
-	return bb, true
+	// get tx
+	txs := make([]*types.Transaction, len(txsHash))
+	for _, txHash := range txsHash {
+		tx, err := rawdb.ReadTransaction(b.chaindb, txHash)
+		if err != nil {
+			b.logger.Error("failed to read transaction", "err", err)
+			txs = append(txs, &types.Transaction{})
+		} else {
+			txs = append(txs, tx)
+		}
+	}
+	res.Transactions = txs
+	return res, true
 }
 
 // TODO
