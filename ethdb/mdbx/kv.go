@@ -2,10 +2,8 @@ package mdbx
 
 import (
 	"bytes"
-	"runtime"
 
 	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
@@ -16,6 +14,7 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 	buf.Write(k)
 	d.cache.Put(buf.Bytes(), v)
 	strbuf.Put(buf)
+
 	return nil
 }
 
@@ -35,12 +34,10 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 
 	var (
 		v []byte
-		r bool
 		e error
 	)
 
 	e = d.env.View(func(txn *mdbx.Txn) error {
-
 		v, e = txn.Get(d.dbi[dbi], k)
 		if e != nil {
 			return e
@@ -49,37 +46,23 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	})
 
 	if e != nil {
-		if e == mdbx.NotFound {
-			e = nil
-			r = false
-		}
-	} else {
-		r = true
+		return nil, false, nil
 	}
 
-	return v, r, e
+	return v, true, nil
 }
 
 func (d *MdbxDB) Sync() error {
-	d.env.Sync(true, false)
+	d.syncCache()
 	return nil
 }
 
 func (d *MdbxDB) Close() error {
 	// flush cache data to database
-	runtime.LockOSThread()
-	tx, err := d.env.BeginTxn(nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	iter := d.cache.NewIterator(nil)
-	for iter.Next() {
-		tx.Put(d.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
-	}
-	tx.Commit()
-	runtime.UnlockOSThread()
+	close(d.stopCh)
+	d.syncCache()
+	d.logger.Info("sync cache over")
 
-	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
 		d.env.CloseDBI(dbi)
 	}
@@ -88,9 +71,7 @@ func (d *MdbxDB) Close() error {
 }
 
 func (d *MdbxDB) Batch() ethdb.Batch {
-	mdb := mdbBuf.Get().(*MemDB)
-	mdb.Reset()
-	return &KVBatch{env: d.env, dbi: d.dbi, db: mdb}
+	return &KVBatch{db: d}
 }
 
 func (d *MdbxDB) Remove(dbi string, k []byte) error {

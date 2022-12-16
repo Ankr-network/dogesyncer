@@ -25,8 +25,9 @@ var (
 type Compare func(a, b []byte) int
 
 type MemDB struct {
-	cmp Compare
-	rnd *rand.Rand
+	cmp      Compare
+	rnd      *rand.Rand
+	capacity int
 
 	mu     sync.RWMutex
 	kvData []byte
@@ -58,6 +59,7 @@ func New(capacity int) *MemDB {
 		maxHeight: 1,
 		kvData:    make([]byte, 0, capacity),
 		nodeData:  make([]int, 4+tMaxHeight),
+		capacity:  capacity,
 	}
 	p.nodeData[nHeight] = tMaxHeight
 	return p
@@ -81,7 +83,6 @@ func (p *MemDB) findGE(key []byte, prev bool) (int, bool) {
 		cmp := 1
 		if next != 0 {
 			o := p.nodeData[next]
-			// 取出key值
 			cmp = p.cmp(p.kvData[o:o+p.nodeData[next+nKey]], key)
 		}
 		if cmp < 0 {
