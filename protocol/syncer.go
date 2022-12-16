@@ -76,7 +76,7 @@ type Syncer struct {
 // NewSyncer creates a new Syncer instance
 func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchainShim, datadir string) *Syncer {
 
-	const defQueueSize = 819200
+	const defQueueSize = 512
 	s := &Syncer{
 		logger:          logger.Named(_syncerName),
 		stopCh:          make(chan struct{}),
@@ -232,6 +232,11 @@ func (s *Syncer) Broadcast(b *types.Block) {
 	s.logger.Debug("broadcast end")
 }
 
+func (s *Syncer) Close() error {
+	close(s.stopCh)
+	return nil
+}
+
 // Start starts the syncer protocol
 func (s *Syncer) Start(ctx context.Context) {
 	s.serviceV1 = &serviceV1{
@@ -273,26 +278,27 @@ func (s *Syncer) WatchSync(ctx context.Context) {
 	defer s.logger.Info("exit handle new block")
 
 	var (
-		newblock = &types.Block{}
+		newblock   = &types.Block{}
+		blockCount uint64
 	)
 
-	for {
-		select {
-		case <-s.enqueueCh.Out:
-			items, err := s.enqueue.Get(1)
-			if err != nil {
-				s.logger.Error("watch sync", "err", err)
-				continue
-			}
-			newblock = items[0]
-			stx := time.Now()
-			err = s.blockchain.WriteBlock(newblock)
-			if err != nil {
-				s.logger.Error("handle new block", "err", err)
-				return
-			}
-			s.logger.Info("write block", "time", time.Since(stx))
-
+	for range s.enqueueCh.Out {
+		items, err := s.enqueue.Get(1)
+		if err != nil {
+			s.logger.Error("watch sync", "err", err)
+			continue
+		}
+		newblock = items[0]
+		stx := time.Now()
+		err = s.blockchain.WriteBlock(newblock)
+		if err != nil {
+			s.logger.Error("handle new block", "err", err)
+			return
+		}
+		s.logger.Info("write block", "time", time.Since(stx))
+		blockCount++
+		if blockCount%5 == 0 {
+			s.blockchain.ChainDB().Sync()
 		}
 	}
 }
@@ -307,85 +313,90 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 	defer s.logger.Info("exit sync work!")
 
 	for {
-		p := s.BestPeer()
-		if p == nil {
-			s.logger.Info("not found best peer")
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		// find the common ancestor
-		ancestor, _, err := s.findCommonAncestor(p.client, p.status)
-		// check whether peer network same with us
-		if isDifferentNetworkError(err) {
-			s.server.DisconnectFromPeer(p.peer, "Different network")
-		}
-		if err != nil {
-			continue
-		}
-
-		s.logger.Info("fork found", "ancestor", ancestor.Number, "target", p.status.Number, "peer", p.ID())
-
-		// start to revieve new block
-		if ancestor.Number+syncFinishedSize > p.status.Number {
-			s.StartToRecieveNewBlock()
-		}
-
-		// dynamic modifying syncing size
-		blockAmount := int64(maxSkeletonHeadersAmount)
-		var (
-			currentSyncHeight        = ancestor.Number + 1
-			target            uint64 = p.status.Number
-		)
-
-		// sync finished
-		if currentSyncHeight == target {
+		select {
+		case <-s.stopCh:
 			return
-		}
-
-		// Stop monitoring the sync progression upon exit
-		for {
-
-			if p.Status() != connectivity.Idle && p.Status() != connectivity.Ready {
-				// there are no more changes to pull for now
-				s.logger.Error("peer error not ready")
-				break
+		default:
+			p := s.BestPeer()
+			if p == nil {
+				s.logger.Info("not found best peer")
+				time.Sleep(10 * time.Second)
+				continue
 			}
 
-			// Create the base request skeleton
-			sk := &skeleton{
-				amount: blockAmount,
+			// find the common ancestor
+			ancestor, _, err := s.findCommonAncestor(p.client, p.status)
+			// check whether peer network same with us
+			if isDifferentNetworkError(err) {
+				s.server.DisconnectFromPeer(p.peer, "Different network")
+			}
+			if err != nil {
+				continue
 			}
 
-			// Fetch the blocks from the peer
-			if err := sk.getBlocksFromPeer(p.client, currentSyncHeight); err != nil {
-				if rpcErr, ok := grpcstatus.FromError(err); ok {
-					// the data size exceeds grpc server/client message size
-					if rpcErr.Code() == grpccodes.ResourceExhausted {
-						blockAmount /= 2
+			s.logger.Info("fork found", "ancestor", ancestor.Number, "target", p.status.Number, "peer", p.ID())
 
-						continue
-					}
-				}
-				break
+			// start to revieve new block
+			if ancestor.Number+syncFinishedSize > p.status.Number {
+				s.StartToRecieveNewBlock()
 			}
 
-			// increase block amount when succeeded
-			blockAmount += stepSkeletonHeadersAmount
+			// dynamic modifying syncing size
+			blockAmount := int64(maxSkeletonHeadersAmount)
+			var (
+				currentSyncHeight        = ancestor.Number + 1
+				target            uint64 = p.status.Number
+			)
 
-			// Verify and write the data locally
-			for _, block := range sk.blocks {
-
-				s.enqueue.Put(block)
-				s.enqueueCh.In <- struct{}{}
-
-				currentSyncHeight++
-			}
-
+			// sync finished
 			if currentSyncHeight == target {
-				break
+				return
 			}
 
+			// Stop monitoring the sync progression upon exit
+			for {
+
+				if p.Status() != connectivity.Idle && p.Status() != connectivity.Ready {
+					// there are no more changes to pull for now
+					s.logger.Error("peer error not ready")
+					break
+				}
+
+				// Create the base request skeleton
+				sk := &skeleton{
+					amount: blockAmount,
+				}
+
+				// Fetch the blocks from the peer
+				if err := sk.getBlocksFromPeer(p.client, currentSyncHeight); err != nil {
+					if rpcErr, ok := grpcstatus.FromError(err); ok {
+						// the data size exceeds grpc server/client message size
+						if rpcErr.Code() == grpccodes.ResourceExhausted {
+							blockAmount /= 2
+
+							continue
+						}
+					}
+					break
+				}
+
+				// increase block amount when succeeded
+				blockAmount += stepSkeletonHeadersAmount
+
+				// Verify and write the data locally
+				for _, block := range sk.blocks {
+
+					s.enqueue.Put(block)
+					s.enqueueCh.In <- struct{}{}
+
+					currentSyncHeight++
+				}
+
+				if currentSyncHeight == target {
+					break
+				}
+
+			}
 		}
 	}
 }

@@ -15,7 +15,6 @@ require (
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/golang-lru v0.5.4
-	github.com/hashicorp/golang-lru/v2 v2.0.1
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/vault/api v1.8.2
 	github.com/libp2p/go-libp2p v0.23.4
@@ -177,7 +176,6 @@ require (
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
 	golang.org/x/tools v0.1.12 // indirect
 	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e // indirect
-	gopkg.in/eapache/queue.v1 v1.1.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect

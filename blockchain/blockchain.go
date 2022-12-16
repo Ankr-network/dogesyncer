@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/sunvim/dogesyncer/chain"
 	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
 	"github.com/sunvim/dogesyncer/contracts/upgrader"
@@ -35,10 +34,6 @@ type Blockchain struct {
 	currentDifficulty atomic.Value // The current difficulty of the chain (total difficulty)
 	stopped           atomic.Bool
 	wg                *sync.WaitGroup
-
-	headersCache         *lru.Cache // LRU cache for the headers
-	blockNumberHashCache *lru.Cache // LRU cache for the CanonicalHash
-	difficultyCache      *lru.Cache // LRU cache for the difficulty
 
 	gpAverage *gasPriceAverage // A reference to the average gas price
 	consensus Verifier
@@ -86,11 +81,6 @@ func NewBlockchain(logger hclog.Logger, db ethdb.Database, chain *chain.Chain, e
 		},
 	}
 
-	err := b.initCaches(32)
-	if err != nil {
-		return nil, err
-	}
-
 	b.stream.push(&Event{})
 	return b, nil
 }
@@ -114,8 +104,17 @@ func (b *Blockchain) isStopped() bool {
 func (b *Blockchain) SelfCheck() {
 	var newheader *types.Header
 
-	latest, _ := rawdb.ReadHeadHash(b.chaindb)
-	header, _ := rawdb.ReadHeader(b.chaindb, latest)
+	latest, ok := rawdb.ReadHeadHash(b.chaindb)
+	if !ok {
+		panic("shouldn't non head hash")
+	}
+
+	header, err := rawdb.ReadHeader(b.chaindb, latest)
+	if err != nil {
+		b.logger.Error("self check", "err", err)
+		panic(err)
+	}
+
 	_, exist := rawdb.ReadCanonicalHash(b.chaindb, header.Number)
 	if !exist { // missing latest header
 		newheader, _ = b.GetHeaderByNumber(header.Number - 1)
@@ -636,28 +635,6 @@ func (b *Blockchain) calculateGasLimit(parentGasLimit uint64) uint64 {
 	return common.Max(blockGasTarget, common.Max(parentGasLimit-delta, 0))
 }
 
-// initCaches initializes the blockchain caches with the specified size
-func (b *Blockchain) initCaches(size int) error {
-	var err error
-
-	b.headersCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create headers cache, %w", err)
-	}
-
-	b.blockNumberHashCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create canonical cache, %w", err)
-	}
-
-	b.difficultyCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create difficulty cache, %w", err)
-	}
-
-	return nil
-}
-
 func (b *Blockchain) ChainDB() ethdb.Database {
 	return b.chaindb
 }
@@ -796,26 +773,12 @@ func (b *Blockchain) advanceHead(newHeader *types.Header) (*big.Int, error) {
 }
 
 func (b *Blockchain) readTotalDifficulty(headerHash types.Hash) (*big.Int, bool) {
-	// Try to find the difficulty in the cache
-	foundDifficulty, ok := b.difficultyCache.Get(headerHash)
-	if ok {
-		// Hit, return the difficulty
-		fd, ok := foundDifficulty.(*big.Int)
-		if !ok {
-			return nil, false
-		}
-
-		return fd, true
-	}
 
 	// Miss, read the difficulty from the DB
 	dbDifficulty, ok := rawdb.ReadTD(b.chaindb, headerHash)
 	if !ok {
 		return nil, false
 	}
-
-	// Update the difficulty cache
-	b.difficultyCache.Add(headerHash, dbDifficulty)
 
 	return dbDifficulty, true
 }
