@@ -273,6 +273,14 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		logArgs = append(logArgs, "generation_time_in_seconds", diff)
 	}
 
+	// Write txn lookups (txHash -> block)
+	for _, tx := range block.Transactions {
+		// write hash lookup
+		if err := rawdb.WriteTxLookup(b.chaindb, tx.Hash(), block.Hash()); err != nil {
+			return err
+		}
+	}
+
 	b.logger.Info("new block", logArgs...)
 
 	// res, err := rawdb.ReadHeader(b.chaindb, header.Hash)
@@ -927,11 +935,14 @@ func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
 	return res, true
 }
 
-// TODO
 // ReadTxLookup returns the block hash using the transaction hash
-func (b *Blockchain) ReadTxLookup(hash types.Hash) (types.Hash, bool) {
-	if b.isStopped() {
-		return types.ZeroHash, false
+func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
+
+	blockHash, ok := rawdb.ReadTxLookup(b.chaindb, txHash)
+	if !ok {
+		b.logger.Error("failed to read tx lookup")
+		return types.ZeroHash, true
 	}
-	return types.ZeroHash, true
+
+	return blockHash, true
 }

@@ -13,6 +13,7 @@ var (
 	TDDBI       = "todi" // total difficulty
 	SnapDBI     = "snap" // consensus snapshot
 	CodeDBI     = "code" // save contract code
+	TxLookUpDBI = "txlo"
 )
 
 var (

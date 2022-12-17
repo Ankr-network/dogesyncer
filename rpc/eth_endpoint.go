@@ -163,3 +163,36 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	}
 	return toBlock(res, true), nil
 }
+
+func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	// tx
+	tx, ok := s.blockchain.GetTxnByHash(types.StringToHash(paramsIn[0].(string)))
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
+	}
+	// block
+	blockHash, ok := s.blockchain.ReadTxLookup(tx.Hash())
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
+	}
+	block, ok := s.blockchain.GetBlockByHash(blockHash, true)
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
+	}
+	// Find the transaction within the block
+	for idx, txn := range block.Transactions {
+		if txn.Hash() == tx.Hash() {
+			return toTransaction(
+				tx,
+				argUintPtr(block.Number()),
+				argHashPtr(block.Hash()),
+				&idx,
+			), nil
+		}
+	}
+	return nil, nil
+}
