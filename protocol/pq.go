@@ -134,7 +134,6 @@ func (items *priorityItems) push(item *types.Block) {
 // items that implement the Item interface and adds them
 // to the queue i order.
 type PriorityQueue struct {
-	size            int
 	waiters         waiters
 	items           priorityItems
 	itemMap         *hashmap.Map[uint64, struct{}]
@@ -242,6 +241,17 @@ func (pq *PriorityQueue) Peek() *types.Block {
 	return nil
 }
 
+func (pq *PriorityQueue) Latest() uint64 {
+	var num uint64
+	pq.lock.Lock()
+	if len(pq.items) == 0 {
+		return 0
+	}
+	num = pq.items[len(pq.items)].Number()
+	pq.lock.Unlock()
+	return num
+}
+
 // Empty returns a bool indicating if there are any items left
 // in the queue.
 func (pq *PriorityQueue) Empty() bool {
@@ -289,7 +299,6 @@ func (pq *PriorityQueue) Dispose() {
 // NewPriorityQueue is the constructor for a priority queue.
 func NewPriorityQueue(hint int, allowDuplicates bool) *PriorityQueue {
 	return &PriorityQueue{
-		size:            hint,
 		items:           make(priorityItems, 0, hint),
 		itemMap:         hashmap.New[uint64, struct{}](),
 		allowDuplicates: allowDuplicates,

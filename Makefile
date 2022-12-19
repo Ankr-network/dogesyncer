@@ -9,7 +9,7 @@ GoVersion=$(shell go version )
 
 .PHONY: build
 build: 
-	GOMEMLIMIT=4GiB GOGC=off GOOS=linux go build -a -installsuffix cgo \
+	GOOS=linux go build -a -installsuffix cgo \
 	-ldflags "-X 'github.com/sunvim/dogesyncer/cmd.Branch=$(Branch)' \
 	-X 'github.com/sunvim/dogesyncer/cmd.Commit=$(Commit)' \
 	-X 'github.com/sunvim/dogesyncer/cmd.Date=$(Date)' \

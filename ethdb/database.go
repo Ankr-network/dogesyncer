@@ -9,11 +9,11 @@ var (
 	AssistDBI   = "assi"
 	NumHashDBI  = "nuha"
 	TxesDBI     = "txes"
+	TxLookUpDBI = "lkup"
 	ReceiptsDBI = "rept"
-	TDDBI       = "todi" // total difficulty
+	TODBI       = "todi" // total difficulty
 	SnapDBI     = "snap" // consensus snapshot
 	CodeDBI     = "code" // save contract code
-	TxLookUpDBI = "txlo"
 )
 
 var (

@@ -4,15 +4,22 @@ import (
 	"bytes"
 
 	"github.com/sunvim/dogesyncer/ethdb"
+	"github.com/sunvim/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
+
+	nv := &NewValue{}
+	nv.Dbi = dbi
+	nv.Key = k
+	nv.Val = v
+
 	buf := strbuf.Get().(*bytes.Buffer)
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
-	d.cache.Put(buf.Bytes(), v)
+	d.cache.Add(buf.String(), nv)
 	strbuf.Put(buf)
 
 	return nil
@@ -21,23 +28,35 @@ func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
 func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 
 	buf := strbuf.Get().(*bytes.Buffer)
+	defer strbuf.Put(buf)
+
 	buf.Reset()
 	buf.WriteString(dbi)
 	buf.Write(k)
 
-	// query from cache
-	nvs, err := d.cache.Get(buf.Bytes())
-	strbuf.Put(buf)
+	nv, ok := d.cache.Get(buf.String())
+	if ok {
+		return nv.Val, true, nil
+	}
+
+	nvs, err := d.bcache.Get(buf.Bytes())
+	if err == nil {
+		return nvs, true, nil
+	}
+
+	nvs, err = d.acache.Get(buf.Bytes())
 	if err == nil {
 		return nvs, true, nil
 	}
 
 	var (
 		v []byte
+		r bool
 		e error
 	)
 
 	e = d.env.View(func(txn *mdbx.Txn) error {
+
 		v, e = txn.Get(d.dbi[dbi], k)
 		if e != nil {
 			return e
@@ -46,23 +65,42 @@ func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 	})
 
 	if e != nil {
-		return nil, false, nil
+		if e == mdbx.NotFound {
+			e = nil
+			r = false
+		}
+	} else {
+		r = true
 	}
 
-	return v, true, nil
+	return v, r, e
 }
 
 func (d *MdbxDB) Sync() error {
-	d.syncCache()
+	d.env.Sync(true, false)
 	return nil
 }
 
 func (d *MdbxDB) Close() error {
-	// flush cache data to database
 	close(d.stopCh)
-	d.syncCache()
-	d.logger.Info("sync cache over")
 
+	d.flush(true)
+
+	// flush cache data to database
+	d.env.Update(func(txn *mdbx.Txn) error {
+		iter := d.acache.NewIterator()
+		for iter.Next() {
+			err := txn.Put(d.dbi[helper.B2S(iter.key[:4])], iter.key[4:], iter.value, 0)
+			if err != nil {
+				panic(err)
+			}
+		}
+		iter.Release()
+		d.acache.Reset()
+		return nil
+	})
+
+	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
 		d.env.CloseDBI(dbi)
 	}
