@@ -208,6 +208,11 @@ func (b *Blockchain) GetHeaderByNumber(n uint64) (*types.Header, bool) {
 	return header, true
 }
 
+// GetParent returns the parent header
+func (b *Blockchain) GetParent(header *types.Header) (*types.Header, bool) {
+	return b.readHeader(header.ParentHash)
+}
+
 func (b *Blockchain) WriteBlock(block *types.Block) error {
 	if b.isStopped() {
 		return ErrClosed
@@ -268,7 +273,23 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		logArgs = append(logArgs, "generation_time_in_seconds", diff)
 	}
 
+	// Write txn lookups (txHash -> block)
+	for _, tx := range block.Transactions {
+		// write hash lookup
+		if err := rawdb.WriteTxLookup(b.chaindb, tx.Hash(), block.Hash()); err != nil {
+			return err
+		}
+	}
+
 	b.logger.Info("new block", logArgs...)
+
+	// res, err := rawdb.ReadHeader(b.chaindb, header.Hash)
+	// fmt.Println("rawdb params", header.Hash)
+	// if err != nil {
+	// 	fmt.Println("rawdb error", err)
+	// } else {
+	// 	fmt.Println("rawdb res", res)
+	// }
 
 	return nil
 }
@@ -917,12 +938,11 @@ func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
 // ReadTxLookup returns the block hash using the transaction hash
 func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
 
-	// blockHash, ok := rawdb.ReadTxLookup(b.chaindb, txHash)
-	// if !ok {
-	// 	b.logger.Error("failed to read tx lookup")
-	// 	return types.ZeroHash, true
-	// }
+	blockHash, ok := rawdb.ReadTxLookup(b.chaindb, txHash)
+	if !ok {
+		b.logger.Error("failed to read tx lookup")
+		return types.ZeroHash, true
+	}
 
-	// return blockHash, true
-	return types.Hash{}, false
+	return blockHash, true
 }

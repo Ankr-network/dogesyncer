@@ -5,10 +5,11 @@ import (
 	"unsafe"
 )
 
-func IsChanClosed(ch interface{}) bool {
+func ChanClosed(ch interface{}) bool {
 	if reflect.TypeOf(ch).Kind() != reflect.Chan {
-		panic("only channels!")
+		return true
 	}
+
 	cptr := *(*uintptr)(unsafe.Pointer(
 		unsafe.Pointer(uintptr(unsafe.Pointer(&ch)) + unsafe.Sizeof(uint(0))),
 	))

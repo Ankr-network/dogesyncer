@@ -25,11 +25,18 @@ var (
 type Compare func(a, b []byte) int
 
 type MemDB struct {
-	cmp       Compare
-	rnd       *rand.Rand
-	capacity  int
-	mu        sync.RWMutex
-	kvData    []byte
+	cmp      Compare
+	rnd      *rand.Rand
+	capacity int
+
+	mu     sync.RWMutex
+	kvData []byte
+	// Node data:
+	// [0]         : KV offset
+	// [1]         : Key length
+	// [2]         : Value length
+	// [3]         : Height
+	// [3..height] : Next nodes
 	nodeData  []int
 	prevNode  [tMaxHeight]int
 	maxHeight int
@@ -248,9 +255,34 @@ func (p *MemDB) Find(key []byte) (rkey, value []byte, err error) {
 	return
 }
 
+type Range struct {
+	// Start of the key range, include in the range.
+	Start []byte
+
+	// Limit of the key range, not include in the range.
+	Limit []byte
+}
+
+// BytesPrefix returns key range that satisfy the given prefix.
+// This only applicable for the standard 'bytes comparer'.
+func BytesPrefix(prefix []byte) *Range {
+	var limit []byte
+	for i := len(prefix) - 1; i >= 0; i-- {
+		c := prefix[i]
+		if c < 0xff {
+			limit = make([]byte, i+1)
+			copy(limit, prefix)
+			limit[i] = c + 1
+			break
+		}
+	}
+	return &Range{prefix, limit}
+}
+
 type dbIter struct {
 	BasicReleaser
 	p          *MemDB
+	slice      *Range
 	node       int
 	forward    bool
 	key, value []byte
@@ -269,10 +301,20 @@ func (i *dbIter) fill(checkStart, checkLimit bool) bool {
 		n := i.p.nodeData[i.node]          // nodeData  []int
 		m := n + i.p.nodeData[i.node+nKey] // nKey: 1
 		i.key = i.p.kvData[n:m]
+		if i.slice != nil {
+			switch {
+			case checkLimit && i.slice.Limit != nil && i.p.cmp(i.key, i.slice.Limit) >= 0:
+				fallthrough
+			case checkStart && i.slice.Start != nil && i.p.cmp(i.key, i.slice.Start) < 0:
+				i.node = 0
+				goto bail
+			}
+		}
 		// kvData []byte
 		i.value = i.p.kvData[m : m+i.p.nodeData[i.node+nVal]]
 		return true
 	}
+bail:
 	i.key = nil
 	i.value = nil
 	return false
@@ -291,7 +333,11 @@ func (i *dbIter) First() bool {
 	i.forward = true
 	i.p.mu.RLock()
 	defer i.p.mu.RUnlock()
-	i.node = i.p.nodeData[nNext]
+	if i.slice != nil && i.slice.Start != nil {
+		i.node, _ = i.p.findGE(i.slice.Start, false)
+	} else {
+		i.node = i.p.nodeData[nNext]
+	}
 	return i.fill(false, true)
 }
 
@@ -304,7 +350,11 @@ func (i *dbIter) Last() bool {
 	i.forward = false
 	i.p.mu.RLock()
 	defer i.p.mu.RUnlock()
-	i.node = i.p.findLast()
+	if i.slice != nil && i.slice.Limit != nil {
+		i.node = i.p.findLT(i.slice.Limit)
+	} else {
+		i.node = i.p.findLast()
+	}
 	return i.fill(true, false)
 }
 
@@ -317,6 +367,9 @@ func (i *dbIter) Seek(key []byte) bool {
 	i.forward = true
 	i.p.mu.RLock()
 	defer i.p.mu.RUnlock()
+	if i.slice != nil && i.slice.Start != nil && i.p.cmp(key, i.slice.Start) < 0 {
+		key = i.slice.Start
+	}
 	i.node, _ = i.p.findGE(key, false)
 	return i.fill(false, true)
 }
@@ -379,8 +432,8 @@ func (i *dbIter) Release() {
 	}
 }
 
-func (p *MemDB) NewIterator() *dbIter {
-	return &dbIter{p: p}
+func (p *MemDB) NewIterator(slice *Range) *dbIter {
+	return &dbIter{p: p, slice: slice}
 }
 
 // Capacity returns keys/values buffer capacity.

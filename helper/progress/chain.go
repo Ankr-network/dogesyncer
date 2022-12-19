@@ -51,6 +51,7 @@ func NewProgressionWrapper(syncType ChainSyncType) *ProgressionWrapper {
 	return &ProgressionWrapper{
 		progression: nil,
 		stopCh:      make(chan struct{}),
+		lock:        sync.RWMutex{},
 		syncType:    syncType,
 	}
 }
