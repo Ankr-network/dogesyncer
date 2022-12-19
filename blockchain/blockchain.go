@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru"
 	"github.com/sunvim/dogesyncer/chain"
 	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
 	"github.com/sunvim/dogesyncer/contracts/upgrader"
@@ -36,12 +35,16 @@ type Blockchain struct {
 	stopped           atomic.Bool
 	wg                *sync.WaitGroup
 
-	headersCache         *lru.Cache // LRU cache for the headers
-	blockNumberHashCache *lru.Cache // LRU cache for the CanonicalHash
-	difficultyCache      *lru.Cache // LRU cache for the difficulty
-
 	gpAverage *gasPriceAverage // A reference to the average gas price
+	consensus Verifier
+}
 
+type Verifier interface {
+	VerifyHeader(header *types.Header) error
+	ProcessHeaders(headers []*types.Header) error
+	GetBlockCreator(header *types.Header) (types.Address, error)
+	PreStateCommit(header *types.Header, txn *state.Transition) error
+	IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool
 }
 
 func (b *Blockchain) Config() *chain.Chain {
@@ -78,11 +81,6 @@ func NewBlockchain(logger hclog.Logger, db ethdb.Database, chain *chain.Chain, e
 		},
 	}
 
-	err := b.initCaches(32)
-	if err != nil {
-		return nil, err
-	}
-
 	b.stream.push(&Event{})
 	return b, nil
 }
@@ -108,20 +106,18 @@ func (b *Blockchain) SelfCheck() {
 
 	latest, ok := rawdb.ReadHeadHash(b.chaindb)
 	if !ok {
-		panic("it shouldn't happen, can't read latest hash")
+		panic("shouldn't non head hash")
 	}
+
 	header, err := rawdb.ReadHeader(b.chaindb, latest)
 	if err != nil {
-		panic("it shouldn't happen, can't read header by specify hash")
+		b.logger.Error("self check", "err", err)
+		panic(err)
 	}
+
 	_, exist := rawdb.ReadCanonicalHash(b.chaindb, header.Number)
 	if !exist { // missing latest header
-		for num := header.Number - 1; num > 0; num-- {
-			newheader, ok = b.GetHeaderByNumber(num)
-			if ok {
-				break
-			}
-		}
+		newheader, _ = b.GetHeaderByNumber(header.Number - 1)
 	}
 
 	// issue: when restart , missing state
@@ -547,23 +543,7 @@ func (b *Blockchain) getSigner(height uint64) crypto.TxSigner {
 // writeBody writes the block body to the DB.
 // Additionally, it also updates the txn lookup, for txnHash -> block lookups
 func (b *Blockchain) writeBody(block *types.Block) error {
-
-	err := rawdb.WriteTransactions(b.chaindb, block.Transactions)
-	if err != nil {
-		return err
-	}
-
-	err = rawdb.WriteBody(b.chaindb, block.Hash(), block.Transactions)
-	if err != nil {
-		return err
-	}
-
-	err = rawdb.WriteTxLookUp(b.chaindb, block.Number(), block.Transactions)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return rawdb.WriteTransactions(b.chaindb, block.Transactions)
 }
 
 func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
@@ -648,28 +628,6 @@ func (b *Blockchain) calculateGasLimit(parentGasLimit uint64) uint64 {
 	// The gas limit is higher than the gas target, so it should
 	// decrease towards the target
 	return common.Max(blockGasTarget, common.Max(parentGasLimit-delta, 0))
-}
-
-// initCaches initializes the blockchain caches with the specified size
-func (b *Blockchain) initCaches(size int) error {
-	var err error
-
-	b.headersCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create headers cache, %w", err)
-	}
-
-	b.blockNumberHashCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create canonical cache, %w", err)
-	}
-
-	b.difficultyCache, err = lru.New(size)
-	if err != nil {
-		return fmt.Errorf("unable to create difficulty cache, %w", err)
-	}
-
-	return nil
 }
 
 func (b *Blockchain) ChainDB() ethdb.Database {
@@ -810,26 +768,12 @@ func (b *Blockchain) advanceHead(newHeader *types.Header) (*big.Int, error) {
 }
 
 func (b *Blockchain) readTotalDifficulty(headerHash types.Hash) (*big.Int, bool) {
-	// Try to find the difficulty in the cache
-	foundDifficulty, ok := b.difficultyCache.Get(headerHash)
-	if ok {
-		// Hit, return the difficulty
-		fd, ok := foundDifficulty.(*big.Int)
-		if !ok {
-			return nil, false
-		}
-
-		return fd, true
-	}
 
 	// Miss, read the difficulty from the DB
 	dbDifficulty, ok := rawdb.ReadTD(b.chaindb, headerHash)
 	if !ok {
 		return nil, false
 	}
-
-	// Update the difficulty cache
-	b.difficultyCache.Add(headerHash, dbDifficulty)
 
 	return dbDifficulty, true
 }
@@ -854,10 +798,131 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	if !ok {
 		return nil, false
 	}
-	return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	return b.GetBlockByHash(blkHash, full)
+}
+
+func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
+	txn, err := rawdb.ReadTransaction(b.chaindb, hash)
+	if err != nil {
+		return nil, false
+	}
+	return txn, true
 }
 
 // SubscribeEvents returns a blockchain event subscription
 func (b *Blockchain) SubscribeEvents() Subscription {
 	return b.stream.subscribe()
+}
+
+func (b *Blockchain) GetConsensus() Verifier {
+	return b.consensus
+}
+
+// GetAvgGasPrice returns the average gas price for the chain
+func (b *Blockchain) GetAvgGasPrice() *big.Int {
+	b.gpAverage.RLock()
+	defer b.gpAverage.RUnlock()
+
+	return b.gpAverage.price
+}
+
+// GetBlockByHash returns the block using the block hash
+func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
+	fmt.Println("THIS START", hash)
+	// if b.isStopped() {
+	// 	return nil, false
+	// }
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
+	header, ok := b.readHeader(hash)
+	if !ok {
+		return nil, false
+	}
+
+	block := &types.Block{
+		Header: header,
+	}
+
+	if !full || header.Number == 0 {
+		return block, true
+	}
+
+	// Load the entire block body
+	body, ok := b.readBody(hash)
+	if !ok {
+		return block, true
+	}
+
+	// Set the transactions and uncles
+	block.Transactions = body.Transactions
+	block.Uncles = body.Uncles
+
+	return block, true
+}
+
+// readHeader Returns the header using the hash
+func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
+	// Try to find a hit in the headers cache
+	// h, ok := b.headersCache.Get(hash)
+	// if ok {
+	// 	// Hit, return the3 header
+	// 	header, ok := h.(*types.Header)
+	// 	if !ok {
+	// 		return nil, false
+	// 	}
+
+	// 	return header, true
+	// }
+
+	// Cache miss, load it from the DB
+	// hh, err := b.db.ReadHeader(hash)
+	hh, err := rawdb.ReadHeader(b.chaindb, hash)
+	if err != nil {
+		return nil, false
+	}
+	// fmt.Println("ReadHeader", hh.Difficulty)
+
+	// Compute the header hash and update the cache
+	// hh.ComputeHash()
+	// b.headersCache.Add(hash, hh)
+
+	return hh, true
+}
+
+// readBody reads the block's body, using the block hash
+func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
+	res := &types.Body{}
+	txsHash, err := rawdb.ReadBody(b.chaindb, hash)
+	if err != nil {
+		b.logger.Error("failed to read body", "err", err)
+		return nil, false
+	}
+	// get tx
+	txs := make([]*types.Transaction, len(txsHash))
+	for _, txHash := range txsHash {
+		tx, err := rawdb.ReadTransaction(b.chaindb, txHash)
+		if err != nil {
+			b.logger.Error("failed to read transaction", "err", err)
+			txs = append(txs, &types.Transaction{})
+		} else {
+			txs = append(txs, tx)
+		}
+	}
+	res.Transactions = txs
+	return res, true
+}
+
+// ReadTxLookup returns the block hash using the transaction hash
+func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
+
+	// blockHash, ok := rawdb.ReadTxLookup(b.chaindb, txHash)
+	// if !ok {
+	// 	b.logger.Error("failed to read tx lookup")
+	// 	return types.ZeroHash, true
+	// }
+
+	// return blockHash, true
+	return types.Hash{}, false
 }
