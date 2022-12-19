@@ -36,6 +36,11 @@ type rlpObject interface {
 }
 
 func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
+
+	if !s.syncer.stxRecv {
+		return &empty.Empty{}, nil
+	}
+
 	if req.Raw == nil || len(req.Raw.Value) == 0 {
 		// malicious node conducted denial of service
 		return nil, errNilRawRequest
@@ -63,10 +68,8 @@ func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Em
 		return nil, err
 	}
 
-	if s.syncer.stxRecv {
-		s.syncer.enqueueBlock(id, b)
-		s.syncer.updatePeerStatus(id, status)
-	}
+	s.syncer.enqueueBlock(id, b)
+	s.syncer.updatePeerStatus(id, status)
 
 	return &empty.Empty{}, nil
 }
@@ -119,11 +122,6 @@ func (s *serviceV1) GetObjectsByHash(_ context.Context, req *proto.HashRequest) 
 
 	return resp, nil
 }
-
-const (
-	maxSkeletonHeadersAmount  = 100
-	stepSkeletonHeadersAmount = 45
-)
 
 // GetHeaders implements the V1Server interface
 func (s *serviceV1) GetHeaders(_ context.Context, req *proto.GetHeadersRequest) (*proto.Response, error) {

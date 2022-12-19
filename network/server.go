@@ -19,6 +19,7 @@ import (
 	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
+	"github.com/sunvim/dogesyncer/helper"
 	"github.com/sunvim/dogesyncer/network/common"
 	"github.com/sunvim/dogesyncer/network/dial"
 	"github.com/sunvim/dogesyncer/network/discovery"
@@ -755,7 +756,9 @@ func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
 		case <-s.closeCh:
 			close(ch)
 		default:
-			ch <- evnt
+			if !helper.IsChanClosed(ch) {
+				ch <- evnt
+			}
 		}
 	})
 	if err != nil {
