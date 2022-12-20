@@ -752,19 +752,19 @@ func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
 	ch := make(chan *peerEvent.PeerEvent)
 
 	err := s.SubscribeFn(func(evnt *peerEvent.PeerEvent) {
-		if !helper.ChanClosed(ch) {
-			ch <- evnt
+		select {
+		case <-s.closeCh:
+			close(ch)
+		default:
+			if !helper.IsChanClosed(ch) {
+				ch <- evnt
+			}
 		}
 	})
 	if err != nil {
 		close(ch)
 		return nil, err
 	}
-
-	go func() {
-		<-s.closeCh
-		close(ch)
-	}()
 
 	return ch, nil
 }

@@ -1,11 +1,5 @@
 package mdbx
 
-import (
-	"runtime"
-
-	"github.com/torquem-ch/mdbx-go/mdbx"
-)
-
 type keyvalue struct {
 	dbi   string
 	key   []byte
@@ -14,9 +8,8 @@ type keyvalue struct {
 
 // KVBatch is a batch write for leveldb
 type KVBatch struct {
-	env    *mdbx.Env
-	dbi    map[string]mdbx.DBI
 	writes []keyvalue
+	db     *MdbxDB
 }
 
 func copyBytes(b []byte) (copiedBytes []byte) {
@@ -37,20 +30,9 @@ func (b *KVBatch) Set(dbi string, k, v []byte) error {
 // why no error handle
 func (b *KVBatch) Write() error {
 
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	tx, err := b.env.BeginTxn(&mdbx.Txn{}, 0)
-	if err != nil {
-		panic(err)
-	}
-
-	defer func() {
-		tx.Commit()
-	}()
-
+	var err error
 	for _, keyvalue := range b.writes {
-		err = tx.Put(b.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
+		err = b.db.Set(keyvalue.dbi, keyvalue.key, keyvalue.value)
 		if err != nil {
 			panic(err)
 		}

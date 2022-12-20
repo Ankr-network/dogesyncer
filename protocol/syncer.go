@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"sync"
 	"time"
 
@@ -21,7 +20,6 @@ import (
 	"github.com/sunvim/dogesyncer/protocol/proto"
 	"github.com/sunvim/dogesyncer/types"
 	grpccodes "google.golang.org/grpc/codes"
-	"google.golang.org/grpc/connectivity"
 	grpcstatus "google.golang.org/grpc/status"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -286,28 +284,21 @@ func (s *Syncer) WatchSync(ctx context.Context) {
 				continue
 			}
 			newblock = items[0]
-
-			if err = s.blockchain.VerifyFinalizedBlock(newblock); err != nil {
-				if err == blockchain.ErrExistBlock {
-					continue
-				}
-				s.logger.Error("verify block", "err", err)
-				os.Exit(1)
-			}
 			stx := time.Now()
 			err = s.blockchain.WriteBlock(newblock)
 			if err != nil {
 				s.logger.Error("handle new block", "err", err)
-				os.Exit(1)
+				return
 			}
 			s.logger.Info("write block", "time", time.Since(stx))
-
 		}
 	}
 }
 
 const (
-	syncFinishedSize = 16
+	syncFinishedSize          = 16
+	maxSkeletonHeadersAmount  = 190
+	stepSkeletonHeadersAmount = 30
 )
 
 // number: 687 have tx
@@ -315,8 +306,25 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 	s.logger.Info("starting to sync block ...")
 	defer s.logger.Info("exit sync work!")
 
+	var (
+		p        *SyncPeer
+		ancestor *types.Header
+		err      error
+		blockCh  = make(chan []*types.Block, 4096)
+		block    *types.Block
+	)
+
+	go func(ctx context.Context) {
+		for blocks := range blockCh {
+			for _, block = range blocks {
+				s.enqueue.Put(block)
+				s.enqueueCh.In <- struct{}{}
+			}
+		}
+	}(ctx)
+
 	for {
-		p := s.BestPeer()
+		p = s.BestPeer()
 		if p == nil {
 			s.logger.Info("not found best peer")
 			time.Sleep(10 * time.Second)
@@ -324,7 +332,7 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		}
 
 		// find the common ancestor
-		ancestor, _, err := s.findCommonAncestor(p.client, p.status)
+		ancestor, _, err = s.findCommonAncestor(p.client, p.status)
 		// check whether peer network same with us
 		if isDifferentNetworkError(err) {
 			s.server.DisconnectFromPeer(p.peer, "Different network")
@@ -332,7 +340,6 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 
 		// return error
 		if err != nil {
-			s.logger.Error("find peer", "err", err)
 			continue
 		}
 
@@ -343,34 +350,24 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			s.StartToRecieveNewBlock()
 		}
 
-		// dynamic modifying syncing size
-		blockAmount := int64(maxSkeletonHeadersAmount)
 		var (
-			currentSyncHeight        = ancestor.Number + 1
 			target            uint64 = p.status.Number
+			currentSyncHeight        = ancestor.Number + 1
 		)
 
 		// sync finished
 		if currentSyncHeight == target {
+			close(blockCh)
 			return
 		}
-
-		// Stop monitoring the sync progression upon exit
+		blockAmount := maxSkeletonHeadersAmount
 		for {
-
-			if p.Status() != connectivity.Idle && p.Status() != connectivity.Ready {
-				// there are no more changes to pull for now
-				s.logger.Error("peer error not ready")
-				break
-			}
-
-			// Create the base request skeleton
 			sk := &skeleton{
-				amount: blockAmount,
+				amount: int64(blockAmount),
 			}
 
-			// Fetch the blocks from the peer
-			if err := sk.getBlocksFromPeer(p.client, currentSyncHeight); err != nil {
+			err = sk.getBlocksFromPeer(p.client, currentSyncHeight)
+			if err != nil {
 				if rpcErr, ok := grpcstatus.FromError(err); ok {
 					// the data size exceeds grpc server/client message size
 					if rpcErr.Code() == grpccodes.ResourceExhausted {
@@ -381,23 +378,15 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 				}
 				break
 			}
+			blockAmount = maxSkeletonHeadersAmount
 
-			// increase block amount when succeeded
-			blockAmount += stepSkeletonHeadersAmount
+			blockCh <- sk.blocks
+			currentSyncHeight += uint64(len(sk.blocks))
 
-			// Verify and write the data locally
-			for _, block := range sk.blocks {
-
-				s.enqueue.Put(block)
-				s.enqueueCh.In <- struct{}{}
-
-				currentSyncHeight++
+			// check again
+			if currentSyncHeight >= target {
+				continue
 			}
-
-			if currentSyncHeight == target {
-				break
-			}
-
 		}
 	}
 }
@@ -472,6 +461,26 @@ func (s *Syncer) BestPeer() *SyncPeer {
 	}
 
 	return bestPeer
+}
+
+func (s *Syncer) TakePeerByHeight(height, num uint64) []*SyncPeer {
+	var (
+		rs    = make([]*SyncPeer, num)
+		count uint64
+	)
+
+	s.peers.Range(func(peerID peer.ID, sp *SyncPeer) bool {
+		if sp.Number() > height {
+			rs[count] = sp
+		}
+		count++
+		if count >= num {
+			return false
+		}
+		return true
+	})
+
+	return rs
 }
 
 // AddPeer establishes new connection with the given peer
