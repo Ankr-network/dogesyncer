@@ -986,11 +986,18 @@ func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
 // ReadTxLookup returns the block hash using the transaction hash
 func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
 
-	// blockHash, ok := rawdb.ReadTxLookup(b.chaindb, txHash)
-	// if !ok {
-	// 	b.logger.Error("failed to read tx lookup")
-	// 	return types.ZeroHash, true
-	// }
+	// get blk num
+	blockNum, ok := rawdb.ReadTxLookUp(b.chaindb, txHash)
+	if !ok {
+		b.logger.Error("failed to read tx lookup")
+		return types.ZeroHash, false
+	}
+	// get block
+	blockHash, ok := rawdb.ReadCanonicalHash(b.chaindb, blockNum)
+	if !ok {
+		b.logger.Error("failed to read block by block num")
+		return types.ZeroHash, false
+	}
 
-	return types.Hash{}, true
+	return blockHash, true
 }

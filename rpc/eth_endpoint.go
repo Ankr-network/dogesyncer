@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunvim/dogesyncer/blockchain"
 	"github.com/sunvim/dogesyncer/helper/hex"
 	"github.com/sunvim/dogesyncer/helper/progress"
 	"github.com/sunvim/dogesyncer/state"
@@ -105,13 +106,24 @@ func (e *Eth) GasPrice() (interface{}, error) {
 	return hex.EncodeBig(priceLimit), nil
 }
 
-// TODO
-func (e *Eth) GetTransactionByHash(hash types.Hash) (interface{}, error) {
-	_, ok := e.store.GetTxnByHash(hash)
-	if !ok {
-		return nil, nil
+func GetNumericBlockNumber(numberParam string, blockchain *blockchain.Blockchain) (uint64, error) {
+	switch numberParam {
+	case "latest":
+		return uint64(blockchain.Header().Number), nil
+
+	case "earliest":
+		return 0, nil
+
+	case "pending":
+		return 0, fmt.Errorf("fetching the pending header is not supported")
+
+	default:
+		blockHeight, err := strconv.ParseUint(strings.TrimPrefix(numberParam, "0x"), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return blockHeight, nil
 	}
-	return nil, nil
 }
 
 func (s *RpcServer) EthSyncing(method string, params ...any) (any, Error) {
@@ -195,4 +207,122 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 		}
 	}
 	return nil, nil
+}
+
+func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[0].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
+	}
+	// get block
+	block, ok := s.blockchain.GetBlockByNumber(blockNum, true)
+	if !ok {
+		return nil, NewInvalidRequestError("Invalid Request Error")
+	}
+	// tx index
+	index, indexErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[1].(string), "0x"), 10, 64)
+	if indexErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
+	}
+	if index > uint64(len(block.Transactions)) {
+		return nil, NewInvalidParamsError(fmt.Errorf("this transaction is not found").Error())
+	}
+	tx := block.Transactions[index]
+	idx := int(index)
+	return toTransaction(
+		tx,
+		argUintPtr(block.Number()),
+		argHashPtr(block.Hash()),
+		&idx,
+	), nil
+
+}
+
+func (s *RpcServer) EthGetTransactionReceipt(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	// block
+	blockHash, ok := s.blockchain.ReadTxLookup(types.StringToHash(paramsIn[0].(string)))
+	if !ok {
+		return nil, nil
+	}
+	block, ok := s.blockchain.GetBlockByHash(blockHash, true)
+	if !ok {
+		s.logger.Warn(
+			fmt.Sprintf("Block with hash [%s] not found", blockHash.String()),
+		)
+		return nil, nil
+	}
+	receipts, GetReceiptsByHashErr := s.blockchain.GetReceiptsByHash(blockHash)
+	if GetReceiptsByHashErr != nil {
+		s.logger.Warn(
+			fmt.Sprintf("Receipts for block with hash [%s] not found", blockHash.String()),
+		)
+		return nil, nil
+	}
+	if len(receipts) == 0 {
+		// Receipts not written yet on the db
+		s.logger.Warn(
+			fmt.Sprintf("No receipts found for block with hash [%s]", blockHash.String()),
+		)
+		return nil, nil
+	}
+
+	// find the transaction in the body
+	txIndex := -1
+
+	for i, txn := range block.Transactions {
+		if txn.Hash() == types.StringToHash(paramsIn[0].(string)) {
+			txIndex = i
+			break
+		}
+	}
+
+	if txIndex == -1 {
+		// txn not found
+		return nil, nil
+	}
+
+	txn := block.Transactions[txIndex]
+	raw := receipts[txIndex]
+
+	logs := make([]*Log, len(raw.Logs))
+	for indx, elem := range raw.Logs {
+		logs[indx] = &Log{
+			Address:     elem.Address,
+			Topics:      elem.Topics,
+			Data:        argBytes(elem.Data),
+			BlockHash:   block.Hash(),
+			BlockNumber: argUint64(block.Number()),
+			TxHash:      txn.Hash(),
+			TxIndex:     argUint64(txIndex),
+			LogIndex:    argUint64(indx),
+			Removed:     false,
+		}
+	}
+
+	res := &receipt{
+		Root:              raw.Root,
+		CumulativeGasUsed: argUint64(raw.CumulativeGasUsed),
+		LogsBloom:         raw.LogsBloom,
+		Status:            argUint64(*raw.Status),
+		TxHash:            txn.Hash(),
+		TxIndex:           argUint64(txIndex),
+		BlockHash:         block.Hash(),
+		BlockNumber:       argUint64(block.Number()),
+		GasUsed:           argUint64(raw.GasUsed),
+		ContractAddress:   raw.ContractAddress,
+		FromAddr:          txn.From,
+		ToAddr:            txn.To,
+		Logs:              logs,
+	}
+
+	return res, nil
+
 }

@@ -320,3 +320,31 @@ func (t transaction) getHash() types.Hash { return t.Hash }
 func argHashPtr(h types.Hash) *types.Hash {
 	return &h
 }
+
+type receipt struct {
+	Root              types.Hash     `json:"root"`
+	CumulativeGasUsed argUint64      `json:"cumulativeGasUsed"`
+	LogsBloom         types.Bloom    `json:"logsBloom"`
+	Logs              []*Log         `json:"logs"`
+	Status            argUint64      `json:"status"`
+	TxHash            types.Hash     `json:"transactionHash"`
+	TxIndex           argUint64      `json:"transactionIndex"`
+	BlockHash         types.Hash     `json:"blockHash"`
+	BlockNumber       argUint64      `json:"blockNumber"`
+	GasUsed           argUint64      `json:"gasUsed"`
+	ContractAddress   *types.Address `json:"contractAddress"`
+	FromAddr          types.Address  `json:"from"`
+	ToAddr            *types.Address `json:"to"`
+}
+
+type Log struct {
+	Address     types.Address `json:"address"`
+	Topics      []types.Hash  `json:"topics"`
+	Data        argBytes      `json:"data"`
+	BlockNumber argUint64     `json:"blockNumber"`
+	TxHash      types.Hash    `json:"transactionHash"`
+	TxIndex     argUint64     `json:"transactionIndex"`
+	BlockHash   types.Hash    `json:"blockHash"`
+	LogIndex    argUint64     `json:"logIndex"`
+	Removed     bool          `json:"removed"`
+}
