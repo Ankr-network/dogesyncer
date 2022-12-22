@@ -862,7 +862,45 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	if !ok {
 		return nil, false
 	}
-	return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	// return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	b.wg.Add(1)
+	defer b.wg.Done()
+
+	header, err := rawdb.ReadHeader(b.chaindb, blkHash)
+	if err != nil {
+		return nil, false
+	}
+
+	block := &types.Block{
+		Header: header,
+	}
+
+	if !full || header.Number == 0 {
+		return block, true
+	}
+
+	// Load the entire block body
+	body, err := rawdb.ReadBody(b.chaindb, header.Hash)
+	if err != nil {
+		return block, false
+	}
+
+	// Set the transactions
+	txs := make([]*types.Transaction, len(body))
+	for _, txhash := range body {
+		// get tx
+		tx, err := rawdb.ReadTransaction(b.chaindb, txhash)
+		if err != nil {
+			b.logger.Error("failed to read transaction", "err", err)
+			return block, true
+		}
+		txs = append(txs, tx)
+	}
+
+	block.Transactions = txs
+
+	return block, true
+
 }
 
 // SubscribeEvents returns a blockchain event subscription
