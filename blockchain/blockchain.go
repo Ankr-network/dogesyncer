@@ -880,9 +880,9 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	}
 
 	// Load the entire block body
-	body, err := rawdb.ReadBody(b.chaindb, header.Hash)
+	body, err := rawdb.ReadBody(b.chaindb, blkHash)
 	if err != nil {
-		return block, false
+		return block, true
 	}
 
 	// Set the transactions
@@ -935,7 +935,7 @@ func (b *Blockchain) GetAvgGasPrice() *big.Int {
 
 // GetBlockByHash returns the block using the block hash
 func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
-	fmt.Println("THIS START", hash)
+	// fmt.Println("THIS START", hash)
 	// if b.isStopped() {
 	// 	return nil, false
 	// }

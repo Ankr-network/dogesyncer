@@ -156,7 +156,7 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	return toBlock(res, true), nil
+	return toBlock(res, paramsIn[1].(bool)), nil
 }
 
 func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Error) {
@@ -173,7 +173,9 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	return toBlock(res, true), nil
+	// blockJson, _ := json.Marshal(toBlock(res, paramsIn[1].(bool)))
+	// fmt.Println(string(blockJson))
+	return toBlock(res, paramsIn[1].(bool)), nil
 }
 
 func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, Error) {
