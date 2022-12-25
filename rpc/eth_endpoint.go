@@ -118,7 +118,7 @@ func GetNumericBlockNumber(numberParam string, blockchain *blockchain.Blockchain
 		return 0, fmt.Errorf("fetching the pending header is not supported")
 
 	default:
-		blockHeight, err := strconv.ParseUint(strings.TrimPrefix(numberParam, "0x"), 10, 64)
+		blockHeight, err := strconv.ParseUint(strings.TrimPrefix(numberParam, "0x"), 16, 64)
 		if err != nil {
 			return 0, err
 		}
@@ -152,6 +152,9 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	if err != nil {
 		return nil, err
 	}
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
 	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0].(string)), paramsIn[1].(bool))
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
@@ -164,10 +167,12 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	if err != nil {
 		return nil, err
 	}
-	blockHeight, strconvErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[0].(string), "0x"), 10, 64)
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+	blockHeight, strconvErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[0].(string), "0x"), 16, 64)
 	if strconvErr != nil {
-		fmt.Println("strconvErr", strconvErr)
-		return nil, NewInvalidRequestError(err.Error())
+		return nil, NewInvalidRequestError(strconvErr.Error())
 	}
 	res, ok := s.blockchain.GetBlockByNumber(blockHeight, paramsIn[1].(bool))
 	if !ok {
@@ -183,6 +188,9 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 	if err != nil {
 		return nil, err
 	}
+	if len(paramsIn) != 1 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
 	// tx
 	tx, ok := s.blockchain.GetTxnByHash(types.StringToHash(paramsIn[0].(string)))
 	if !ok {
@@ -197,7 +205,6 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	// Find the transaction within the block
 	for idx, txn := range block.Transactions {
 		if txn.Hash() == tx.Hash() {
 			return toTransaction(
@@ -216,6 +223,9 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 	if err != nil {
 		return nil, err
 	}
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
 	blockNum, numErr := GetNumericBlockNumber(paramsIn[0].(string), s.blockchain)
 	if numErr != nil {
 		return nil, NewInvalidParamsError(numErr.Error())
@@ -226,11 +236,11 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
 	// tx index
-	index, indexErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[1].(string), "0x"), 10, 64)
+	index, indexErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[1].(string), "0x"), 16, 64)
 	if indexErr != nil {
 		return nil, NewInvalidParamsError(numErr.Error())
 	}
-	if index > uint64(len(block.Transactions)) {
+	if index >= uint64(len(block.Transactions)) {
 		return nil, NewInvalidParamsError(fmt.Errorf("this transaction is not found").Error())
 	}
 	tx := block.Transactions[index]

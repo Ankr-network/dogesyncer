@@ -866,6 +866,90 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	b.wg.Add(1)
 	defer b.wg.Done()
 
+	block, ok := b.GetBlockByHash(blkHash, full)
+	if !ok {
+		return nil, false
+	}
+
+	return block, true
+	// header, err := rawdb.ReadHeader(b.chaindb, blkHash)
+	// if err != nil {
+	// 	return nil, false
+	// }
+
+	// block := &types.Block{
+	// 	Header: header,
+	// }
+
+	// if !full || header.Number == 0 {
+	// 	return block, true
+	// }
+
+	// // Load the entire block body
+	// body, err := rawdb.ReadBody(b.chaindb, blkHash)
+	// if err != nil {
+	// 	return block, true
+	// }
+
+	// // Set the transactions
+	// txs := make([]*types.Transaction, len(body)-1)
+	// for _, txhash := range body {
+	// 	// get tx
+	// 	tx, err := rawdb.ReadTransaction(b.chaindb, txhash)
+	// 	if err != nil {
+	// 		b.logger.Error("failed to read transaction", "err", err)
+	// 		return block, true
+	// 	}
+	// 	txs = append(txs, tx)
+	// }
+
+	// block.Transactions = txs
+
+	// return block, true
+
+}
+
+// SubscribeEvents returns a blockchain event subscription
+func (b *Blockchain) SubscribeEvents() Subscription {
+	return b.stream.subscribe()
+}
+
+// GetParent returns the parent header
+func (b *Blockchain) GetParent(header *types.Header) (*types.Header, bool) {
+	return b.readHeader(header.ParentHash)
+}
+
+func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
+	txn, err := rawdb.ReadTransaction(b.chaindb, hash)
+	if err != nil {
+		b.logger.Error("failed to read transaction", "err", err)
+		return nil, false
+	}
+	return txn, true
+}
+
+func (b *Blockchain) GetConsensus() Verifier {
+	return b.consensus
+}
+
+// GetAvgGasPrice returns the average gas price for the chain
+func (b *Blockchain) GetAvgGasPrice() *big.Int {
+	b.gpAverage.RLock()
+	defer b.gpAverage.RUnlock()
+
+	return b.gpAverage.price
+}
+
+// GetBlockByHash returns the block using the block hash
+func (b *Blockchain) GetBlockByHash(blkHash types.Hash, full bool) (*types.Block, bool) {
+	// fmt.Println("THIS START", hash)
+	// if b.isStopped() {
+	// 	return nil, false
+	// }
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
 	header, err := rawdb.ReadHeader(b.chaindb, blkHash)
 	if err != nil {
 		return nil, false
@@ -887,113 +971,27 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 
 	// Set the transactions
 	txs := make([]*types.Transaction, len(body))
-	for _, txhash := range body {
+	for index, txhash := range body {
 		// get tx
 		tx, err := rawdb.ReadTransaction(b.chaindb, txhash)
 		if err != nil {
 			b.logger.Error("failed to read transaction", "err", err)
 			return block, true
 		}
-		txs = append(txs, tx)
+		txs[index] = tx
 	}
-
 	block.Transactions = txs
-
-	return block, true
-
-}
-
-// SubscribeEvents returns a blockchain event subscription
-func (b *Blockchain) SubscribeEvents() Subscription {
-	return b.stream.subscribe()
-}
-
-// GetParent returns the parent header
-func (b *Blockchain) GetParent(header *types.Header) (*types.Header, bool) {
-	return b.readHeader(header.ParentHash)
-}
-
-func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
-	txn, err := rawdb.ReadTransaction(b.chaindb, hash)
-	if err != nil {
-		return nil, false
-	}
-	return txn, true
-}
-
-func (b *Blockchain) GetConsensus() Verifier {
-	return b.consensus
-}
-
-// GetAvgGasPrice returns the average gas price for the chain
-func (b *Blockchain) GetAvgGasPrice() *big.Int {
-	b.gpAverage.RLock()
-	defer b.gpAverage.RUnlock()
-
-	return b.gpAverage.price
-}
-
-// GetBlockByHash returns the block using the block hash
-func (b *Blockchain) GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool) {
-	// fmt.Println("THIS START", hash)
-	// if b.isStopped() {
-	// 	return nil, false
-	// }
-
-	b.wg.Add(1)
-	defer b.wg.Done()
-
-	header, ok := b.readHeader(hash)
-	if !ok {
-		return nil, false
-	}
-
-	block := &types.Block{
-		Header: header,
-	}
-
-	if !full || header.Number == 0 {
-		return block, true
-	}
-
-	// Load the entire block body
-	body, ok := b.readBody(hash)
-	if !ok {
-		return block, true
-	}
-
-	// Set the transactions and uncles
-	block.Transactions = body.Transactions
-	block.Uncles = body.Uncles
 
 	return block, true
 }
 
 // readHeader Returns the header using the hash
 func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
-	// Try to find a hit in the headers cache
-	// h, ok := b.headersCache.Get(hash)
-	// if ok {
-	// 	// Hit, return the3 header
-	// 	header, ok := h.(*types.Header)
-	// 	if !ok {
-	// 		return nil, false
-	// 	}
 
-	// 	return header, true
-	// }
-
-	// Cache miss, load it from the DB
-	// hh, err := b.db.ReadHeader(hash)
 	hh, err := rawdb.ReadHeader(b.chaindb, hash)
 	if err != nil {
 		return nil, false
 	}
-	// fmt.Println("ReadHeader", hh.Difficulty)
-
-	// Compute the header hash and update the cache
-	// hh.ComputeHash()
-	// b.headersCache.Add(hash, hh)
 
 	return hh, true
 }
