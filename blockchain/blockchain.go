@@ -994,3 +994,17 @@ func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
 
 	return types.Hash{}, true
 }
+
+func (b *Blockchain) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
+
+	return nil, nil
+}
+func (b *Blockchain) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
+	return nil, nil
+}
+func (b *Blockchain) GetForksInTime(blockNumber uint64) chain.ForksInTime {
+	return chain.ForksInTime{}
+}
+func (b *Blockchain) GetCode(hash types.Hash) ([]byte, error) {
+	return nil, nil
+}

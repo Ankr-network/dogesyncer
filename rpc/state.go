@@ -33,7 +33,7 @@ func (gp *GetBalanceParams) Unmarshal(params ...any) error {
 	return nil
 }
 
-// not support "earliest" and "pending"
+// GetBalance not support "earliest" and "pending"
 func (s *RpcServer) GetBalance(method string, params ...any) any {
 	var gp *GetBalanceParams
 	err := gp.Unmarshal(params...)

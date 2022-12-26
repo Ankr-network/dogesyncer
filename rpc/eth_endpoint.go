@@ -196,3 +196,42 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 	}
 	return nil, nil
 }
+
+func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
+	query := &LogQuery{
+		BlockHash: nil,
+		FromBlock: 0,
+		ToBlock:   0,
+		Addresses: nil,
+		Topics:    nil,
+	}
+	logs, e := s.filterManager.GetLogs(query)
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	return logs, nil
+}
+
+func (s *RpcServer) GetFilterLogs(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	logFilter, e := s.filterManager.GetLogFilterFromID(paramsIn[0].(string))
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	logs, e := s.filterManager.GetLogs(logFilter.query)
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	return logs, nil
+}
+
+func (s *RpcServer) UninstallFilter(method string, params ...any) (any, Error) {
+	return s.filterManager.Uninstall(params[0].(string)), nil
+}
+
+func (s *RpcServer) NewFilter(filter *LogQuery) (interface{}, error) {
+	return s.filterManager.NewLogFilter(filter, nil), nil
+}
