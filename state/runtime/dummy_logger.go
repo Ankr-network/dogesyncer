@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 // DummyLogger does nothing in state logging

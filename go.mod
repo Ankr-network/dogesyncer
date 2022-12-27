@@ -1,4 +1,4 @@
-module github.com/sunvim/dogesyncer
+module github.com/ankr/dogesyncer
 
 go 1.19
 
@@ -11,6 +11,7 @@ require (
 	github.com/go-kit/kit v0.12.0
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/golang/protobuf v1.5.2
+	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/go-hclog v1.3.1
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-multierror v1.1.1
@@ -67,7 +68,6 @@ require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-plugin v1.4.5 // indirect

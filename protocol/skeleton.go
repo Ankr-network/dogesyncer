@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/sunvim/dogesyncer/protocol/proto"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/protocol/proto"
+	"github.com/ankr/dogesyncer/types"
 )
 
 const (

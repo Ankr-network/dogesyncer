@@ -4,7 +4,7 @@ import (
 	"container/heap"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/common"
 
 	"github.com/libp2p/go-libp2p-core/peer"
 )

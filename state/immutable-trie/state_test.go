@@ -3,7 +3,7 @@ package itrie
 import (
 	"testing"
 
-	"github.com/sunvim/dogesyncer/state"
+	"github.com/ankr/dogesyncer/state"
 )
 
 func TestState(t *testing.T) {

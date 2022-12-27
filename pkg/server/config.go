@@ -3,10 +3,10 @@ package server
 import (
 	"net"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/network"
-	"github.com/sunvim/dogesyncer/secrets"
 )
 
 // Config defines the server configuration params

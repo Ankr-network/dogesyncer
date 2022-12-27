@@ -8,14 +8,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/contracts/bridge"
+	"github.com/ankr/dogesyncer/contracts/systemcontracts"
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/state/runtime/evm"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/contracts/bridge"
-	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/state/runtime"
-	"github.com/sunvim/dogesyncer/state/runtime/evm"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 const (

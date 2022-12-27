@@ -3,8 +3,8 @@ package mdbx
 import (
 	"bytes"
 
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 

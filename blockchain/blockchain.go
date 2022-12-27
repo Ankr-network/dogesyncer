@@ -6,20 +6,20 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/contracts/systemcontracts"
+	"github.com/ankr/dogesyncer/contracts/upgrader"
+	"github.com/ankr/dogesyncer/contracts/validatorset"
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/rawdb"
+	"github.com/ankr/dogesyncer/state"
+	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
+	"github.com/ankr/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types/buildroot"
 	"github.com/hashicorp/go-hclog"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
-	"github.com/sunvim/dogesyncer/contracts/upgrader"
-	"github.com/sunvim/dogesyncer/contracts/validatorset"
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper/common"
-	"github.com/sunvim/dogesyncer/rawdb"
-	"github.com/sunvim/dogesyncer/state"
-	itrie "github.com/sunvim/dogesyncer/state/immutable-trie"
-	"github.com/sunvim/dogesyncer/types"
-	"github.com/sunvim/dogesyncer/types/buildroot"
 )
 
 type Blockchain struct {
@@ -996,15 +996,35 @@ func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
 }
 
 func (b *Blockchain) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
+	obj, err := b.state.GetState(root, addr.Bytes())
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	var account state.Account
+	if err := account.UnmarshalRlp(obj); err != nil {
+		return nil, err
+	}
+
+	return &account, nil
 }
 func (b *Blockchain) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
-	return nil, nil
+	account, err := b.GetAccount(root, addr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := b.state.GetState(account.Root, slot.Bytes())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, nil
 }
-func (b *Blockchain) GetForksInTime(blockNumber uint64) chain.ForksInTime {
-	return chain.ForksInTime{}
-}
+
 func (b *Blockchain) GetCode(hash types.Hash) ([]byte, error) {
-	return nil, nil
+	code, _ := b.state.GetCode(hash)
+	return code, nil
 }

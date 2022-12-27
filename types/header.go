@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ankr/dogesyncer/helper/hex"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/sunvim/dogesyncer/helper/hex"
 )
 
 // Header represents a block header in the Ethereum blockchain.

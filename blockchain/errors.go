@@ -18,4 +18,5 @@ var (
 	ErrNilStorageBuilder    = errors.New("nil storage builder")
 	ErrClosed               = errors.New("blockchain is closed")
 	ErrExistBlock           = errors.New("exist block")
+	ErrStateNotFound        = errors.New("given root and slot not found in storage")
 )

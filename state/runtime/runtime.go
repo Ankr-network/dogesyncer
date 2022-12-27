@@ -4,8 +4,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/types"
 )
 
 // TxContext is the context of the transaction

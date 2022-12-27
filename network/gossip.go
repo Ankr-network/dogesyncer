@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunvim/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/helper/common"
 
 	"github.com/hashicorp/go-hclog"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"

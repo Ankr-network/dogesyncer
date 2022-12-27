@@ -1,6 +1,6 @@
 package proto
 
-import "github.com/sunvim/dogesyncer/types"
+import "github.com/ankr/dogesyncer/types"
 
 // DecodeHashes decode to types Hash in the request
 func (h *HashRequest) DecodeHashes() ([]types.Hash, error) {

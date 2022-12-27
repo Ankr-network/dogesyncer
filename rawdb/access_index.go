@@ -1,9 +1,9 @@
 package rawdb
 
 import (
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/types"
 )
 
 func WriteSnap(db ethdb.Database, number uint64, snap *types.Snapshot) error {

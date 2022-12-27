@@ -3,7 +3,7 @@ package progress
 import (
 	"sync"
 
-	"github.com/sunvim/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/blockchain"
 )
 
 type ChainSyncType string

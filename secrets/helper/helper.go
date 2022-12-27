@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/ankr/dogesyncer/secrets"
+	"github.com/ankr/dogesyncer/secrets/awsssm"
+	"github.com/ankr/dogesyncer/secrets/hashicorpvault"
+	"github.com/ankr/dogesyncer/secrets/local"
 	"github.com/hashicorp/go-hclog"
 	libp2pCrypto "github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/helper/common"
-	"github.com/sunvim/dogesyncer/network"
-	"github.com/sunvim/dogesyncer/secrets"
-	"github.com/sunvim/dogesyncer/secrets/awsssm"
-	"github.com/sunvim/dogesyncer/secrets/hashicorpvault"
-	"github.com/sunvim/dogesyncer/secrets/local"
 )
 
 // SetupLocalSecretsManager is a helper method for boilerplate local secrets manager setup

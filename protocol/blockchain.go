@@ -3,9 +3,9 @@ package protocol
 import (
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/blockchain"
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/types"
 )
 
 // Blockchain is the interface required by the syncer to connect to the blockchain

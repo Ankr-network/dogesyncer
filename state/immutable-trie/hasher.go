@@ -6,9 +6,9 @@ import (
 	"hash"
 	"sync"
 
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/types"
 	"golang.org/x/crypto/sha3"
 )
 

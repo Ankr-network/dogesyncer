@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 type RpcFunc func(method string, params ...any) (any, Error)

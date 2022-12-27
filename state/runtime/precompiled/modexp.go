@@ -5,7 +5,7 @@ import (
 
 	"math"
 
-	"github.com/sunvim/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/chain"
 )
 
 type modExp struct {

@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 func TestScanHash(t *testing.T) {

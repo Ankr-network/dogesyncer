@@ -1,8 +1,8 @@
 package blockchain
 
 import (
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/types"
 )
 
 type IBlockchain interface {

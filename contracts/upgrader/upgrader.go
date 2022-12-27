@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/contracts/systemcontracts"
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/state"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/state"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 type UpgradeConfig struct {

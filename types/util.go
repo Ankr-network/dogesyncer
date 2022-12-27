@@ -3,7 +3,7 @@ package types
 import (
 	"strings"
 
-	"github.com/sunvim/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/hex"
 )
 
 func min(i, j int) int {
