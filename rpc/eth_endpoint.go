@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"gopkg.in/square/go-jose.v2/json"
 	"math/big"
 	"strconv"
 	"strings"
@@ -198,13 +199,20 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 }
 
 func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
-	query := &LogQuery{
-		BlockHash: nil,
-		FromBlock: 0,
-		ToBlock:   0,
-		Addresses: nil,
-		Topics:    nil,
+	query := new(LogQuery)
+
+	if len(params) == 0 {
+		return nil, NewInvalidParamsError("not enough params")
 	}
+	d, e := json.Marshal(params[0])
+	if e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	if e := json.Unmarshal(d, query); e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
 	logs, e := s.filterManager.GetLogs(query)
 	if e != nil {
 		return nil, &internalError{err: e.Error()}
@@ -232,6 +240,19 @@ func (s *RpcServer) UninstallFilter(method string, params ...any) (any, Error) {
 	return s.filterManager.Uninstall(params[0].(string)), nil
 }
 
-func (s *RpcServer) NewFilter(filter *LogQuery) (interface{}, error) {
-	return s.filterManager.NewLogFilter(filter, nil), nil
+func (s *RpcServer) NewFilter(method string, params ...any) (any, Error) {
+	query := new(LogQuery)
+
+	if len(params) == 0 {
+		return nil, NewInvalidParamsError("not enough params")
+	}
+	d, e := json.Marshal(params[0])
+	if e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	if e := json.Unmarshal(d, query); e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+	return s.filterManager.NewLogFilter(query, nil), nil
 }

@@ -3,7 +3,6 @@ package itrie
 import (
 	"errors"
 	"fmt"
-	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/helper/keccak"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -11,6 +10,8 @@ import (
 	"github.com/ankr/dogesyncer/state"
 	"github.com/ankr/dogesyncer/types"
 )
+
+var ErrStateNotFound = errors.New("given root and slot not found in storage")
 
 const (
 	codeLruCacheSize         = 8192
@@ -78,7 +79,7 @@ func (s *State) GetState(root types.Hash, slot []byte) ([]byte, error) {
 	result, ok := snap.Get(key)
 
 	if !ok {
-		return nil, blockchain.ErrStateNotFound
+		return nil, ErrStateNotFound
 	}
 
 	return result, nil

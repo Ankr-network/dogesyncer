@@ -131,8 +131,16 @@ func (s *RpcServer) initmethods() {
 		"eth_getBlockByHash":   s.EthGetBlockByHash,
 		"eth_getBlockByNumber": s.EthGetBlockByNumber,
 
-		"eth_getFilterLogs": s.GetFilterLogs,
-		"eth_getLogs":       s.GetLogs,
+		"eth_getFilterLogs":   s.GetFilterLogs,
+		"eth_getLogs":         s.GetLogs,
+		"eth_uninstallFilter": s.UninstallFilter,
+		"eth_newFilter":       s.NewFilter,
+
+		"eth_getBalance":          s.GetBalance,
+		"eth_getCode":             s.GetCode,
+		"eth_getStorageAt":        s.GetStorageAt,
+		"eth_call":                s.Call,
+		"eth_getTransactionCount": s.GetTransactionCount,
 	}
 }
 

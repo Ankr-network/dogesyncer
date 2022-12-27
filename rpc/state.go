@@ -2,9 +2,10 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/state"
+	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
 	"github.com/ankr/dogesyncer/types"
+	"github.com/dogechain-lab/fastrlp"
 	"math/big"
 )
 
@@ -36,29 +37,114 @@ func (gp *GetBalanceParams) Unmarshal(params ...any) error {
 }
 
 // GetBalance not support "earliest" and "pending"
-func (s *RpcServer) GetBalance(method string, params ...any) any {
+func (s *RpcServer) GetBalance(method string, params ...any) (any, Error) {
 	var gp *GetBalanceParams
 	err := gp.Unmarshal(params...)
 	if err != nil {
-		return err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return fmt.Errorf("not support pending and earliest block query")
+		return nil, NewInvalidParamsError("not support pending and earliest block query")
 	}
 
 	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
 	if !found {
-		return blockchain.ErrStateNotFound
+		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
 	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
 	if err != nil {
-		return err
+		return nil, NewInvalidParamsError(err.Error())
 	}
-	return account.Balance.String()
+	return account.Balance.String(), nil
 }
 
-func (s *RpcServer) Call(method string, params ...any) any {
+func (s *RpcServer) GetCode(method string, params ...any) (any, Error) {
+	var gp *GetBalanceParams
+	err := gp.Unmarshal(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
+		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	}
+
+	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	if !found {
+		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
+	}
+
+	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	code, err := s.blockchain.GetCode(types.BytesToHash(account.CodeHash))
+	return argBytesPtr(code), nil
+}
+
+func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
+	var gp *GetBalanceParams
+	err := gp.Unmarshal(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
+		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	}
+
+	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	if !found {
+		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
+	}
+
+	storage, err := s.blockchain.GetStorage(header.StateRoot, gp.Address, types.StringToHash("0x0"))
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	// Parse the RLP value
+	p := &fastrlp.Parser{}
+
+	v, err := p.Parse(storage)
+	if err != nil {
+		return argBytesPtr(types.ZeroHash[:]), nil
+	}
+
+	data, err := v.Bytes()
+
+	if err != nil {
+		return argBytesPtr(types.ZeroHash[:]), nil
+	}
+
+	// Pad to return 32 bytes data
+	return argBytesPtr(types.BytesToHash(data).Bytes()), nil
+}
+
+func (s *RpcServer) GetTransactionCount(method string, params ...any) (any, Error) {
+	var gp *GetBalanceParams
+	err := gp.Unmarshal(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
+		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	}
+
+	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	if !found {
+		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
+	}
+
+	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	return argUintPtr(account.Nonce), nil
+}
+
+func (s *RpcServer) Call(method string, params ...any) (any, Error) {
 	var (
 		header *types.Header
 		err    error
@@ -67,10 +153,10 @@ func (s *RpcServer) Call(method string, params ...any) any {
 	var gp *GetBalanceParams
 	err = gp.Unmarshal(params...)
 	if err != nil {
-		return err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return fmt.Errorf("not support pending and earliest block query")
+		return nil, NewInvalidParamsError("not support pending and earliest block query")
 	}
 
 	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
@@ -88,27 +174,27 @@ func (s *RpcServer) Call(method string, params ...any) any {
 
 	transition, err := s.executor.BeginTxn(header.StateRoot, header, header.Miner)
 	if err != nil {
-		return err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 
 	trans, err := decodeTxn(tx, *transition)
 
 	result, err := transition.Apply(trans)
 	if err != nil {
-		return err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 
 	// Check if an EVM revert happened
 	if result.Reverted() {
-		return fmt.Errorf("%w: reverted", result.Err)
+		return nil, NewInvalidRequestError(fmt.Sprintf("%v: reverted", result.Err))
 
 	}
 
 	if result.Failed() {
-		return fmt.Errorf("unable to execute call: %w", result.Err)
+		return nil, NewInvalidRequestError(fmt.Sprintf("unable to execute call: %v", result.Err))
 	}
 
-	return argBytesPtr(result.ReturnValue)
+	return argBytesPtr(result.ReturnValue), nil
 }
 
 type TxnArgs struct {
