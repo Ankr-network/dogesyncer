@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/chain"
 	bn256 "github.com/umbracle/go-eth-bn256"
 )
 

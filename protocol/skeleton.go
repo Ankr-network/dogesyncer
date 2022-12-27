@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ankr/dogesyncer/protocol/proto"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/sunvim/dogesyncer/network"
-	"github.com/sunvim/dogesyncer/protocol/proto"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 const (

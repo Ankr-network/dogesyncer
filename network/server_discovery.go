@@ -6,13 +6,13 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/discovery"
+	"github.com/ankr/dogesyncer/network/grpc"
+	"github.com/ankr/dogesyncer/network/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/network/discovery"
-	"github.com/sunvim/dogesyncer/network/grpc"
-	"github.com/sunvim/dogesyncer/network/proto"
 	rawGrpc "google.golang.org/grpc"
 )
 

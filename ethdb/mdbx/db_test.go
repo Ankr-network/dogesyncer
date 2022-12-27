@@ -3,9 +3,9 @@ package mdbx
 import (
 	"testing"
 
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/ethdb/dbtest"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/ethdb/dbtest"
 )
 
 func TestMdbxDB(t *testing.T) {

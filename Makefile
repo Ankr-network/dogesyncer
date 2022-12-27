@@ -10,12 +10,12 @@ GoVersion=$(shell go version )
 .PHONY: build
 build: 
 	GOOS=linux go build -a -installsuffix cgo \
-	-ldflags "-X 'github.com/sunvim/dogesyncer/cmd.Branch=$(Branch)' \
-	-X 'github.com/sunvim/dogesyncer/cmd.Commit=$(Commit)' \
-	-X 'github.com/sunvim/dogesyncer/cmd.Date=$(Date)' \
-	-X 'github.com/sunvim/dogesyncer/cmd.Author=$(Author)' \
-	-X 'github.com/sunvim/dogesyncer/cmd.Email=$(Email)' \
-	-X 'github.com/sunvim/dogesyncer/cmd.GoVersion=$(GoVersion)'" -o bin/doge
+	-ldflags "-X 'github.com/ankr/dogesyncer/cmd.Branch=$(Branch)' \
+	-X 'github.com/ankr/dogesyncer/cmd.Commit=$(Commit)' \
+	-X 'github.com/ankr/dogesyncer/cmd.Date=$(Date)' \
+	-X 'github.com/ankr/dogesyncer/cmd.Author=$(Author)' \
+	-X 'github.com/ankr/dogesyncer/cmd.Email=$(Email)' \
+	-X 'github.com/ankr/dogesyncer/cmd.GoVersion=$(GoVersion)'" -o bin/doge
 
 .PHONY: race
 race:
@@ -35,14 +35,14 @@ docker:
 	--build-arg Date='$(Date)' \
 	--build-arg Author='$(Author)' \
 	--build-arg Email='$(Email)' \
-	-t sunvim/doge:$(Ver) .
+	-t ankr/doge:$(Ver) .
 	docker image prune -f --filter label=stage=builder
 
 .PHONY: release
 release: docker
-	docker push sunvim/doge:$(Ver)
-	docker tag sunvim/doge:$(Ver) sunvim/doge:latest
-	docker push sunvim/doge:latest
+	docker push ankr/doge:$(Ver)
+	docker tag ankr/doge:$(Ver) ankr/doge:latest
+	docker push ankr/doge:latest
 
 
 

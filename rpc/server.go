@@ -3,11 +3,12 @@ package rpc
 import (
 	"context"
 	"fmt"
+	"github.com/ankr/dogesyncer/state"
 
+	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v2"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/blockchain"
 )
 
 type endpoints struct {
@@ -16,24 +17,31 @@ type endpoints struct {
 	Net  *Net
 }
 
+const logBlockRange = 1024
+
 type RpcServer struct {
-	logger     hclog.Logger
-	ctx        context.Context
-	blockchain *blockchain.Blockchain
-	addr       string
-	port       string
-	routers    map[string]RpcFunc
-	endpoints  endpoints
+	logger        hclog.Logger
+	ctx           context.Context
+	blockchain    *blockchain.Blockchain
+	addr          string
+	port          string
+	routers       map[string]RpcFunc
+	filterManager *FilterManager
+	endpoints     endpoints
+	executor      *state.Executor
 }
 
 func NewRpcServer(logger hclog.Logger,
 	blockchain *blockchain.Blockchain,
+	executor *state.Executor,
 	addr, port string, store JSONRPCStore) *RpcServer {
 	s := &RpcServer{
-		logger:     logger.Named("rpc"),
-		addr:       addr,
-		port:       port,
-		blockchain: blockchain,
+		logger:        logger.Named("rpc"),
+		addr:          addr,
+		port:          port,
+		blockchain:    blockchain,
+		executor:      executor,
+		filterManager: NewFilterManager(logger, blockchain, logBlockRange),
 	}
 	s.initEndpoints(store)
 	s.initmethods()
@@ -100,7 +108,10 @@ func (s *RpcServer) Start(ctx context.Context) error {
 			return nil
 		})
 
-		svc.Listen(ap)
+		err := svc.Listen(ap)
+		if err != nil {
+			return
+		}
 	}(ctx)
 
 	return nil
@@ -113,6 +124,16 @@ func (s *RpcServer) initmethods() {
 
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
+
+		"eth_getFilterLogs":   s.GetFilterLogs,
+		"eth_getLogs":         s.GetLogs,
+		"eth_uninstallFilter": s.UninstallFilter,
+		"eth_newFilter":       s.NewFilter,
+		"eth_getBalance":          s.GetBalance,
+		"eth_getCode":             s.GetCode,
+		"eth_getStorageAt":        s.GetStorageAt,
+		"eth_call":                s.Call,
+		"eth_getTransactionCount": s.GetTransactionCount,
 
 		"eth_syncing":                             s.EthSyncing,
 		"eth_gasPrice":                            s.EthGasPrice,

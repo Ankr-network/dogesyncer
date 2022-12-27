@@ -7,6 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ankr/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/dial"
+	"github.com/ankr/dogesyncer/network/discovery"
+	peerEvent "github.com/ankr/dogesyncer/network/event"
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p"
@@ -19,12 +25,6 @@ import (
 	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sunvim/dogesyncer/helper"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/network/dial"
-	"github.com/sunvim/dogesyncer/network/discovery"
-	peerEvent "github.com/sunvim/dogesyncer/network/event"
-	"github.com/sunvim/dogesyncer/secrets"
 	rawGrpc "google.golang.org/grpc"
 )
 

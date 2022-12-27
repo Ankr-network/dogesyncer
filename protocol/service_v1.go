@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ankr/dogesyncer/network/grpc"
+	"github.com/ankr/dogesyncer/protocol/proto"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/sunvim/dogesyncer/network/grpc"
-	"github.com/sunvim/dogesyncer/protocol/proto"
-	"github.com/sunvim/dogesyncer/types"
 	anypb "google.golang.org/protobuf/types/known/anypb"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )

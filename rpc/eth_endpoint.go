@@ -2,16 +2,16 @@ package rpc
 
 import (
 	"fmt"
+	"gopkg.in/square/go-jose.v2/json"
 	"math/big"
 	"strconv"
 	"strings"
 
-	"github.com/sunvim/dogesyncer/blockchain"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/helper/progress"
-	"github.com/sunvim/dogesyncer/state"
-	"github.com/sunvim/dogesyncer/state/runtime"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/progress"
+	"github.com/ankr/dogesyncer/state"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/types"
 )
 
 const (
@@ -337,4 +337,63 @@ func (s *RpcServer) EthGetTransactionReceipt(method string, params ...any) (any,
 
 	return res, nil
 
+}
+
+func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
+	query := new(LogQuery)
+
+	if len(params) == 0 {
+		return nil, NewInvalidParamsError("not enough params")
+	}
+	d, e := json.Marshal(params[0])
+	if e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	if e := json.Unmarshal(d, query); e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	logs, e := s.filterManager.GetLogs(query)
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	return logs, nil
+}
+
+func (s *RpcServer) GetFilterLogs(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, err
+	}
+	logFilter, e := s.filterManager.GetLogFilterFromID(paramsIn[0].(string))
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	logs, e := s.filterManager.GetLogs(logFilter.query)
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	return logs, nil
+}
+
+func (s *RpcServer) UninstallFilter(method string, params ...any) (any, Error) {
+	return s.filterManager.Uninstall(params[0].(string)), nil
+}
+
+func (s *RpcServer) NewFilter(method string, params ...any) (any, Error) {
+	query := new(LogQuery)
+
+	if len(params) == 0 {
+		return nil, NewInvalidParamsError("not enough params")
+	}
+	d, e := json.Marshal(params[0])
+	if e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	if e := json.Unmarshal(d, query); e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+	return s.filterManager.NewLogFilter(query, nil), nil
 }

@@ -3,8 +3,8 @@ package rpc
 import (
 	"fmt"
 
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/keccak"
 )
 
 // Web3 is the web3 jsonrpc endpoint

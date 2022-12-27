@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ankr/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/pkg/server/proto"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/sunvim/dogesyncer/blockchain"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/pkg/server/proto"
-	"github.com/sunvim/dogesyncer/types"
 	empty "google.golang.org/protobuf/types/known/emptypb"
 )
 

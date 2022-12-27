@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/ankr/dogesyncer/types"
 	"github.com/cornelk/hashmap"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 var (

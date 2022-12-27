@@ -5,10 +5,10 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/contracts/abis"
-	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
-	"github.com/sunvim/dogesyncer/state/runtime"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/contracts/abis"
+	"github.com/ankr/dogesyncer/contracts/systemcontracts"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/types"
 	web3 "github.com/umbracle/go-web3"
 	"github.com/umbracle/go-web3/abi"
 )

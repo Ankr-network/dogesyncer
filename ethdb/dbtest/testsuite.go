@@ -17,7 +17,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/sunvim/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/ethdb"
 )
 
 // TestDatabaseSuite runs a suite of tests against a KeyValueStore database

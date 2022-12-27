@@ -3,12 +3,15 @@ package itrie
 import (
 	"errors"
 	"fmt"
+	"github.com/ankr/dogesyncer/helper/keccak"
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/sunvim/dogesyncer/state"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/state"
+	"github.com/ankr/dogesyncer/types"
 )
+
+var ErrStateNotFound = errors.New("given root and slot not found in storage")
 
 const (
 	codeLruCacheSize         = 8192
@@ -62,6 +65,24 @@ func (s *State) SetCode(hash types.Hash, code []byte) error {
 	s.metrics.CodeLruCacheWrite.Add(1)
 
 	return err
+}
+
+func (s *State) GetState(root types.Hash, slot []byte) ([]byte, error) {
+	// the values in the trie are the hashed objects of the keys
+	key := keccak.Keccak256(nil, slot)
+
+	snap, err := s.NewSnapshotAt(root)
+	if err != nil {
+		return nil, err
+	}
+
+	result, ok := snap.Get(key)
+
+	if !ok {
+		return nil, ErrStateNotFound
+	}
+
+	return result, nil
 }
 
 func (s *State) GetCode(hash types.Hash) ([]byte, bool) {

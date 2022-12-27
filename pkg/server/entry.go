@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 
+	"github.com/ankr/dogesyncer/helper/progress"
+	"github.com/ankr/dogesyncer/protocol"
+	"github.com/ankr/dogesyncer/rpc"
 	"github.com/spf13/cobra"
-	"github.com/sunvim/dogesyncer/helper/progress"
-	"github.com/sunvim/dogesyncer/protocol"
-	"github.com/sunvim/dogesyncer/rpc"
 	"github.com/sunvim/utils/grace"
 )
 
@@ -34,7 +34,7 @@ func Run(cmd *cobra.Command, args []string) {
 		Executor:           m.executor,
 	}
 
-	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
+	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
 	rpcServer.Start(ctx)
 
 	// register close function

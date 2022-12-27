@@ -3,9 +3,9 @@ package precompiled
 import (
 	"encoding/binary"
 
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/state/runtime"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/types"
 )
 
 var _ runtime.Runtime = &Precompiled{}

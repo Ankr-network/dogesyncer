@@ -5,11 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 type RpcFunc func(method string, params ...any) (any, Error)
@@ -472,3 +471,58 @@ type txnArgs struct {
 // 	CurrentBlock  string `json:"currentBlock"`
 // 	HighestBlock  string `json:"highestBlock"`
 // }
+
+type Log struct {
+	Address     types.Address `json:"address"`
+	Topics      []types.Hash  `json:"topics"`
+	Data        argBytes      `json:"data"`
+	BlockNumber argUint64     `json:"blockNumber"`
+	TxHash      types.Hash    `json:"transactionHash"`
+	TxIndex     argUint64     `json:"transactionIndex"`
+	BlockHash   types.Hash    `json:"blockHash"`
+	LogIndex    argUint64     `json:"logIndex"`
+	Removed     bool          `json:"removed"`
+}
+
+func argBytesPtr(b []byte) *argBytes {
+	bb := argBytes(b)
+
+	return &bb
+}
+
+func (b argBytes) MarshalText() ([]byte, error) {
+	return encodeToHex(b), nil
+}
+
+func (b *argBytes) UnmarshalText(input []byte) error {
+	hh, err := decodeToHex(input)
+	if err != nil {
+		return nil
+	}
+
+	aux := make([]byte, len(hh))
+	copy(aux[:], hh[:])
+	*b = aux
+
+	return nil
+}
+
+func decodeToHex(b []byte) ([]byte, error) {
+	str := string(b)
+	str = strings.TrimPrefix(str, "0x")
+
+	if len(str)%2 != 0 {
+		str = "0" + str
+	}
+
+	return hex.DecodeString(str)
+}
+
+func encodeToHex(b []byte) []byte {
+	str := hex.EncodeToString(b)
+	if len(str)%2 != 0 {
+		str = "0" + str
+	}
+
+	return []byte("0x" + str)
+}

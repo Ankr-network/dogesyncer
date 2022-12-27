@@ -4,9 +4,9 @@ import (
 	"crypto/sha256"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/helper/keccak"
 	"golang.org/x/crypto/ripemd160"
 )
 
