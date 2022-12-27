@@ -177,7 +177,6 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 			}
 
 			if obj.DirtyCode {
-				// TODO, we need to handle error here
 				_ = t.state.SetCode(obj.CodeHash, obj.Code)
 			}
 
@@ -189,15 +188,16 @@ func (t *Trie) Commit(objs []*state.Object) (state.Snapshot, []byte) {
 		}
 	}
 
-	root, _ := tt.Hash()
+	root, err := tt.Hash()
+	if err != nil {
+		panic(err)
+	}
 
 	nTrie := tt.Commit()
 	nTrie.state = t.state
 	nTrie.storage = t.storage
 
-	// Write all the entries to db
-	// TODO, need to handle error
-	err := batch.Write()
+	err = batch.Write()
 	if err != nil {
 		panic(err)
 	}

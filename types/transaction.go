@@ -49,16 +49,12 @@ func (t *Transaction) Hash() Hash {
 
 // rlpHash encodes transaction hash.
 func (t *Transaction) rlpHash() (h Hash) {
-	ar := marshalArenaPool.Get()
+	ar := &fastrlp.Arena{}
 	hash := keccak.DefaultKeccakPool.Get()
-	// return it back
-	defer func() {
-		keccak.DefaultKeccakPool.Put(hash)
-		marshalArenaPool.Put(ar)
-	}()
 
 	v := t.MarshalRLPWith(ar)
 	hash.WriteRlp(h[:0], v)
+	keccak.DefaultKeccakPool.Put(hash)
 
 	return h
 }

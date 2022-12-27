@@ -57,7 +57,6 @@ type Syncer struct {
 	peers *hashmap.Map[peer.ID, *SyncPeer] // Maps peer.ID -> SyncPeer
 
 	serviceV1 *serviceV1
-	stopCh    chan struct{}
 
 	status     *Status
 	statusLock sync.Mutex
@@ -70,6 +69,7 @@ type Syncer struct {
 	enqueueCh *chanx.UnboundedChan[struct{}]
 	stxRecv   bool
 	onceSend  *sync.Once
+	stopSync  chan struct{}
 }
 
 // NewSyncer creates a new Syncer instance
@@ -78,7 +78,6 @@ func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchai
 	const defQueueSize = 819200
 	s := &Syncer{
 		logger:          logger.Named(_syncerName),
-		stopCh:          make(chan struct{}),
 		blockchain:      blockchain,
 		server:          server,
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
@@ -86,9 +85,15 @@ func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchai
 		enqueue:         NewPriorityQueue(defQueueSize, false),
 		enqueueCh:       chanx.NewUnboundedChan[struct{}](defQueueSize),
 		onceSend:        &sync.Once{},
+		stopSync:        make(chan struct{}),
 	}
 
 	return s
+}
+
+func (s *Syncer) Close() error {
+	close(s.stopSync)
+	return nil
 }
 
 // GetSyncProgression returns the latest sync progression, if any
@@ -122,9 +127,6 @@ func (s *Syncer) syncCurrentStatus(ctx context.Context) {
 			}
 
 			s.updateStatus(status)
-
-		case <-s.stopCh:
-			sub.Close()
 
 			return
 		}
@@ -277,6 +279,8 @@ func (s *Syncer) WatchSync(ctx context.Context) {
 
 	for {
 		select {
+		case <-s.stopSync:
+			return
 		case <-s.enqueueCh.Out:
 			items, err := s.enqueue.Get(1)
 			if err != nil {
@@ -311,83 +315,87 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		ancestor *types.Header
 		err      error
 		blockCh  = make(chan []*types.Block, 4096)
-		block    *types.Block
 	)
 
-	go func(ctx context.Context) {
-		for blocks := range blockCh {
-			for _, block = range blocks {
-				s.enqueue.Put(block)
-				s.enqueueCh.In <- struct{}{}
-			}
-		}
-	}(ctx)
-
 	for {
-		p = s.BestPeer()
-		if p == nil {
-			s.logger.Info("not found best peer")
-			time.Sleep(10 * time.Second)
-			continue
-		}
-
-		// find the common ancestor
-		ancestor, _, err = s.findCommonAncestor(p.client, p.status)
-		// check whether peer network same with us
-		if isDifferentNetworkError(err) {
-			s.server.DisconnectFromPeer(p.peer, "Different network")
-		}
-
-		// return error
-		if err != nil {
-			continue
-		}
-
-		s.logger.Info("fork found", "ancestor", ancestor.Number, "target", p.status.Number, "peer", p.ID())
-
-		// start to revieve new block
-		if ancestor.Number+syncFinishedSize > p.status.Number {
-			s.StartToRecieveNewBlock()
-		}
-
-		var (
-			target            uint64 = p.status.Number
-			currentSyncHeight        = ancestor.Number + 1
-		)
-
-		// sync finished
-		if currentSyncHeight == target {
-			close(blockCh)
+		select {
+		case <-s.stopSync:
 			return
-		}
-		blockAmount := maxSkeletonHeadersAmount
-		for {
-			sk := &skeleton{
-				amount: int64(blockAmount),
-			}
-
-			err = sk.getBlocksFromPeer(p.client, currentSyncHeight)
-			if err != nil {
-				if rpcErr, ok := grpcstatus.FromError(err); ok {
-					// the data size exceeds grpc server/client message size
-					if rpcErr.Code() == grpccodes.ResourceExhausted {
-						blockAmount /= 2
-
-						continue
-					}
-				}
-				break
-			}
-			blockAmount = maxSkeletonHeadersAmount
-
-			blockCh <- sk.blocks
-			currentSyncHeight += uint64(len(sk.blocks))
-
-			// check again
-			if currentSyncHeight >= target {
+		default:
+			p = s.BestPeer()
+			if p == nil {
+				s.logger.Info("not found best peer")
+				time.Sleep(10 * time.Second)
 				continue
 			}
+
+			// find the common ancestor
+			ancestor, _, err = s.findCommonAncestor(p.client, p.status)
+			// check whether peer network same with us
+			if isDifferentNetworkError(err) {
+				s.server.DisconnectFromPeer(p.peer, "Different network")
+			}
+
+			// return error
+			if err != nil {
+				continue
+			}
+
+			s.logger.Info("fork found", "ancestor", ancestor.Number, "target", p.status.Number, "peer", p.ID())
+
+			// start to revieve new block
+			if ancestor.Number+syncFinishedSize > p.status.Number {
+				s.StartToRecieveNewBlock()
+			}
+
+			var (
+				target            uint64 = p.status.Number
+				currentSyncHeight        = ancestor.Number + 1
+			)
+
+			// sync finished
+			if currentSyncHeight == target {
+				close(blockCh)
+				return
+			}
+			blockAmount := maxSkeletonHeadersAmount
+			for {
+				sk := &skeleton{
+					server: s.server,
+					amount: int64(blockAmount),
+				}
+
+				blocks, err := sk.GetBlocks(ctx, p.ID(), currentSyncHeight)
+				if err != nil {
+					if rpcErr, ok := grpcstatus.FromError(err); ok {
+						// the data size exceeds grpc server/client message size
+						if rpcErr.Code() == grpccodes.ResourceExhausted {
+							blockAmount /= 2
+
+							continue
+						}
+					}
+					break
+				}
+				blockAmount = maxSkeletonHeadersAmount
+
+				for _, block := range blocks {
+					err = s.blockchain.WriteBlock(block)
+					if err != nil {
+						s.logger.Error("write block", "err", err)
+						return
+					}
+				}
+
+				currentSyncHeight += uint64(len(blocks))
+
+				// check again
+				if currentSyncHeight >= target {
+					continue
+				}
+			}
 		}
+
 	}
 }
 

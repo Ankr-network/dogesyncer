@@ -1,5 +1,11 @@
 package mdbx
 
+import (
+	"runtime"
+
+	"github.com/sunvim/utils/cachem"
+)
+
 type keyvalue struct {
 	dbi   string
 	key   []byte
@@ -16,9 +22,8 @@ func copyBytes(b []byte) (copiedBytes []byte) {
 	if b == nil {
 		return nil
 	}
-	copiedBytes = make([]byte, len(b))
+	copiedBytes = cachem.Malloc(len(b))
 	copy(copiedBytes, b)
-
 	return
 }
 
@@ -30,12 +35,24 @@ func (b *KVBatch) Set(dbi string, k, v []byte) error {
 // why no error handle
 func (b *KVBatch) Write() error {
 
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
 	var err error
+
+	txn, err := b.db.env.BeginTxn(nil, 0)
+	if err != nil {
+		panic(err)
+	}
+	defer txn.Commit()
+
 	for _, keyvalue := range b.writes {
-		err = b.db.Set(keyvalue.dbi, keyvalue.key, keyvalue.value)
+		err = txn.Put(b.db.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
 		if err != nil {
 			panic(err)
 		}
+		cachem.Free(keyvalue.key)
+		cachem.Free(keyvalue.value)
 	}
 
 	return nil
