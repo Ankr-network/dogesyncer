@@ -2,15 +2,10 @@ package mdbx
 
 import (
 	"bytes"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"github.com/ankr/dogesyncer/ethdb"
-	"github.com/ankr/dogesyncer/helper"
 	"github.com/hashicorp/go-hclog"
-	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/torquem-ch/mdbx-go/mdbx"
+	"sync"
 )
 
 type NewValue struct {

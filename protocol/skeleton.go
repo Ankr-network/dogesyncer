@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ankr/dogesyncer/network"
 	"time"
 
 	"github.com/ankr/dogesyncer/protocol/proto"

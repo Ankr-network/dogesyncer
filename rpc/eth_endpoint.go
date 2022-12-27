@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"fmt"
+	"github.com/ankr/dogesyncer/blockchain"
 	"gopkg.in/square/go-jose.v2/json"
 	"math/big"
 	"strconv"

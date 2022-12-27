@@ -1,10 +1,7 @@
 package mdbx
 
 import (
-	"bytes"
-
 	"github.com/ankr/dogesyncer/ethdb"
-	"github.com/ankr/dogesyncer/helper"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
