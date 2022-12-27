@@ -19,6 +19,9 @@ type Progression struct {
 	// SyncType is indicating the sync method
 	SyncType ChainSyncType
 
+	// SyncingPeer is current syncing peer id
+	SyncingPeer string
+
 	// StartingBlock is the initial block that the node is starting
 	// the sync from. It is reset after every sync batch
 	StartingBlock uint64
