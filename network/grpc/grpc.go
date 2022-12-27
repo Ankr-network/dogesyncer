@@ -8,8 +8,8 @@ import (
 
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/ankr/dogesyncer/helper/common"
 	manet "github.com/multiformats/go-multiaddr/net"
-	"github.com/sunvim/dogesyncer/helper/common"
 
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"

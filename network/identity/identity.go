@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ankr/dogesyncer/network/event"
 	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/network/event"
 
+	"github.com/ankr/dogesyncer/network/proto"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/sunvim/dogesyncer/network/proto"
 )
 
 const PeerID = "peerID"

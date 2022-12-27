@@ -4,7 +4,7 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 type void struct{}

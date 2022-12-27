@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"unicode"
 
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/keccak"
 )
 
 var ZeroAddress = Address{}

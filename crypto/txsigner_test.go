@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ankr/dogesyncer/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 func TestFrontierSigner(t *testing.T) {

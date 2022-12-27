@@ -1,12 +1,7 @@
 package types
 
-import (
-	"github.com/dogechain-lab/fastrlp"
-)
-
 var (
-	HeaderHash       func(h *Header) Hash
-	marshalArenaPool fastrlp.ArenaPool
+	HeaderHash func(h *Header) Hash
 )
 
 func init() {

@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/helper/hex"
 )
 
 const nodeIDBytes = 512 / 8

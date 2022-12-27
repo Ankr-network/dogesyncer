@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/event"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/network"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/network/event"
 
+	"github.com/ankr/dogesyncer/network/grpc"
+	"github.com/ankr/dogesyncer/network/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	kb "github.com/libp2p/go-libp2p-kbucket"
-	"github.com/sunvim/dogesyncer/network/grpc"
-	"github.com/sunvim/dogesyncer/network/proto"
 )
 
 const (

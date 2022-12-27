@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/hashicorp/go-hclog"
 	vault "github.com/hashicorp/vault/api"
-	"github.com/sunvim/dogesyncer/secrets"
 )
 
 // VaultSecretsManager is a SecretsManager that

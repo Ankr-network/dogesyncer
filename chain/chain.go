@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"math/big"
 
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/hashicorp/go-multierror"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 var (

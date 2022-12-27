@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/sunvim/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/chain"
 )
 
 type blake2f struct {

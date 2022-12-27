@@ -3,8 +3,8 @@ package network
 import (
 	"encoding/hex"
 
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/sunvim/dogesyncer/secrets"
 )
 
 // ReadLibp2pKey reads the private networking key from the secrets manager

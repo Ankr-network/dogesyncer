@@ -10,11 +10,11 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/keystore"
+	"github.com/ankr/dogesyncer/secrets"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/helper/keystore"
-	"github.com/sunvim/dogesyncer/secrets"
-	"github.com/sunvim/dogesyncer/types"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/dogechain-lab/fastrlp"

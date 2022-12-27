@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/sunvim/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/helper/keccak"
 )
 
 func BenchmarkFast(b *testing.B) {

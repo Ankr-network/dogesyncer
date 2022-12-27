@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ankr/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/helper/common"
-	"github.com/sunvim/dogesyncer/secrets"
 )
 
 // LocalSecretsManager is a SecretsManager that

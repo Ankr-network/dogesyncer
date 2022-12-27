@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sunvim/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/hex"
 )
 
 type TestCase struct {

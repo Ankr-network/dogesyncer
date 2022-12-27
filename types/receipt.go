@@ -7,9 +7,9 @@ import (
 
 	goHex "encoding/hex"
 
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/helper/keccak"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/helper/keccak"
 )
 
 type ReceiptStatus uint64

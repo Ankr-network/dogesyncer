@@ -8,10 +8,10 @@ import (
 
 	"sync"
 
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/helper/hex"
-	"github.com/sunvim/dogesyncer/state/runtime"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/types"
 )
 
 var statePool = sync.Pool{
@@ -290,7 +290,7 @@ func (c *state) Run() (ret []byte, vmerr error) {
 			// capture pre-execution values for tracing
 			executedIp, memory, stack, logged, gasBefore, gasAfter =
 				uint64(c.ip), c.memory, make([]*big.Int, c.sp), false, c.gas, c.gas
-				// deep copy
+			// deep copy
 			for i, v := range c.stack[:c.sp] {
 				stack[i] = new(big.Int).Set(v)
 			}

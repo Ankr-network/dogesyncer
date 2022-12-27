@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/contracts/abis"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/contracts/abis"
+	"github.com/ankr/dogesyncer/types"
 	web3 "github.com/umbracle/go-web3"
 )
 

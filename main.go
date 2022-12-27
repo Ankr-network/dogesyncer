@@ -16,7 +16,7 @@ along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 package main
 
-import "github.com/sunvim/dogesyncer/cmd"
+import "github.com/ankr/dogesyncer/cmd"
 
 func main() {
 	cmd.Execute()

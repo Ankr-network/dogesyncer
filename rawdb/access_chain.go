@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/types"
 )
 
 func ReadTD(db ethdb.Database, hash types.Hash) (*big.Int, bool) {

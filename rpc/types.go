@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 type RpcFunc func(method string, params ...any) (any, Error)
@@ -465,10 +465,3 @@ type txnArgs struct {
 	Input    *argBytes
 	Nonce    *argUint64
 }
-
-// type progression struct {
-// 	Type          string `json:"type"`
-// 	StartingBlock string `json:"startingBlock"`
-// 	CurrentBlock  string `json:"currentBlock"`
-// 	HighestBlock  string `json:"highestBlock"`
-// }
