@@ -2,11 +2,12 @@ package rpc
 
 import (
 	"fmt"
+	"math/big"
+
 	"github.com/ankr/dogesyncer/state"
 	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
 	"github.com/ankr/dogesyncer/types"
 	"github.com/dogechain-lab/fastrlp"
-	"math/big"
 )
 
 type GetBalanceParams struct {
@@ -38,67 +39,79 @@ func (gp *GetBalanceParams) Unmarshal(params ...any) error {
 
 // GetBalance not support "earliest" and "pending"
 func (s *RpcServer) GetBalance(method string, params ...any) (any, Error) {
-	var gp *GetBalanceParams
-	err := gp.Unmarshal(params...)
+	paramsIn, err := GetPrams(params...)
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
 	}
 
-	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	header, found := s.blockchain.GetHeaderByNumber(blockNum)
 	if !found {
 		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
-	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
+	account, err := s.blockchain.GetAccount(header.StateRoot, types.StringToAddress(paramsIn[0].(string)))
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	return account.Balance.String(), nil
+	return types.EncodeBigInt(account.Balance), nil
 }
 
 func (s *RpcServer) GetCode(method string, params ...any) (any, Error) {
-	var gp *GetBalanceParams
-	err := gp.Unmarshal(params...)
+	paramsIn, err := GetPrams(params...)
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
 	}
 
-	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	header, found := s.blockchain.GetHeaderByNumber(blockNum)
 	if !found {
 		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
-	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
+	account, err := s.blockchain.GetAccount(header.StateRoot, types.StringToAddress(paramsIn[0].(string)))
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
 
 	code, err := s.blockchain.GetCode(types.BytesToHash(account.CodeHash))
-	return argBytesPtr(code), nil
-}
-
-func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
-	var gp *GetBalanceParams
-	err := gp.Unmarshal(params...)
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	return types.EncodeBytes(code), nil
+}
+
+func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if len(paramsIn) != 3 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
 	}
 
-	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	header, found := s.blockchain.GetHeaderByNumber(blockNum)
 	if !found {
 		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
-	storage, err := s.blockchain.GetStorage(header.StateRoot, gp.Address, types.StringToHash("0x0"))
+	storage, err := s.blockchain.GetStorage(header.StateRoot, types.StringToAddress(paramsIn[0].(string)), types.StringToHash("0x0"))
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
@@ -118,30 +131,33 @@ func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
 	}
 
 	// Pad to return 32 bytes data
-	return argBytesPtr(types.BytesToHash(data).Bytes()), nil
+	return types.EncodeBytes(types.BytesToHash(data).Bytes()), nil
 }
 
 func (s *RpcServer) GetTransactionCount(method string, params ...any) (any, Error) {
-	var gp *GetBalanceParams
-	err := gp.Unmarshal(params...)
+	paramsIn, err := GetPrams(params...)
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
 	}
 
-	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	header, found := s.blockchain.GetHeaderByNumber(blockNum)
 	if !found {
 		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
-	account, err := s.blockchain.GetAccount(header.StateRoot, gp.Address)
+	account, err := s.blockchain.GetAccount(header.StateRoot, types.StringToAddress(paramsIn[0].(string)))
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
 
-	return argUintPtr(account.Nonce), nil
+	return types.EncodeUint64(account.Nonce), nil
 }
 
 func (s *RpcServer) Call(method string, params ...any) (any, Error) {
