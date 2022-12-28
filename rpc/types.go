@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/ankr/dogesyncer/crypto"
 	"github.com/ankr/dogesyncer/types"
 )
 
@@ -193,15 +194,25 @@ func (h transactionHash) MarshalText() ([]byte, error) {
 }
 
 func toPendingTransaction(t *types.Transaction) *transaction {
-	return toTransaction(t, nil, nil, nil)
+	return toTransaction(t, nil, nil, nil, nil)
 }
+
+var emptyFrom = types.Address{}
 
 func toTransaction(
 	t *types.Transaction,
 	blockNumber *argUint64,
 	blockHash *types.Hash,
 	txIndex *int,
+	txSigner crypto.TxSigner,
 ) *transaction {
+
+	if t.From == emptyFrom {
+		// Decrypt the from address
+		from, _ := txSigner.Sender(t)
+		t.From = from
+	}
+
 	res := &transaction{
 		Nonce:    argUint64(t.Nonce),
 		GasPrice: argBig(*t.GasPrice),
@@ -279,7 +290,7 @@ type block struct {
 	Uncles          []types.Hash        `json:"uncles"`
 }
 
-func toBlock(b *types.Block, fullTx bool) *block {
+func toBlock(b *types.Block, fullTx bool, txSigner crypto.TxSigner) *block {
 	h := b.Header
 	jh := toJSONHeader(h)
 
@@ -300,6 +311,7 @@ func toBlock(b *types.Block, fullTx bool) *block {
 					argUintPtr(b.Number()),
 					argHashPtr(b.Hash()),
 					&idx,
+					txSigner,
 				),
 			)
 		} else {

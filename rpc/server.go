@@ -2,7 +2,10 @@ package rpc
 
 import (
 	"context"
+
 	"fmt"
+
+	"github.com/ankr/dogesyncer/crypto"
 	"github.com/ankr/dogesyncer/state"
 
 	"github.com/ankr/dogesyncer/blockchain"
@@ -125,10 +128,10 @@ func (s *RpcServer) initmethods() {
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
 
-		"eth_getFilterLogs":   s.GetFilterLogs,
-		"eth_getLogs":         s.GetLogs,
-		"eth_uninstallFilter": s.UninstallFilter,
-		"eth_newFilter":       s.NewFilter,
+		"eth_getFilterLogs":       s.GetFilterLogs,
+		"eth_getLogs":             s.GetLogs,
+		"eth_uninstallFilter":     s.UninstallFilter,
+		"eth_newFilter":           s.NewFilter,
 		"eth_getBalance":          s.GetBalance,
 		"eth_getCode":             s.GetCode,
 		"eth_getStorageAt":        s.GetStorageAt,
@@ -153,4 +156,17 @@ func (s *RpcServer) initEndpoints(store JSONRPCStore) {
 	s.endpoints.Eth = &Eth{
 		store: store,
 	}
+}
+
+func (s *RpcServer) GetTxSigner(blockNumber uint64) crypto.TxSigner {
+	var signer crypto.TxSigner
+	forks := s.executor.GetForksInTime(blockNumber)
+
+	if forks.EIP155 {
+		signer = crypto.NewEIP155Signer(uint64(s.blockchain.Config().Params.ChainID))
+	} else {
+		signer = &crypto.FrontierSigner{}
+	}
+
+	return signer
 }

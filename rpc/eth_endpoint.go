@@ -2,11 +2,12 @@ package rpc
 
 import (
 	"fmt"
-	"github.com/ankr/dogesyncer/blockchain"
-	"gopkg.in/square/go-jose.v2/json"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/ankr/dogesyncer/blockchain"
+	"gopkg.in/square/go-jose.v2/json"
 
 	"github.com/ankr/dogesyncer/helper/hex"
 	"github.com/ankr/dogesyncer/helper/progress"
@@ -151,7 +152,7 @@ func (s *RpcServer) GetBlockNumber(method string, params ...any) (any, Error) {
 func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if len(paramsIn) != 2 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
@@ -160,13 +161,13 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	return toBlock(res, paramsIn[1].(bool)), nil
+	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
 
 func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if len(paramsIn) != 2 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
@@ -181,13 +182,13 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	}
 	// blockJson, _ := json.Marshal(toBlock(res, paramsIn[1].(bool)))
 	// fmt.Println(string(blockJson))
-	return toBlock(res, paramsIn[1].(bool)), nil
+	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
 
 func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if len(paramsIn) != 1 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
@@ -213,6 +214,7 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 				argUintPtr(block.Number()),
 				argHashPtr(block.Hash()),
 				&idx,
+				s.GetTxSigner(block.Number()),
 			), nil
 		}
 	}
@@ -222,7 +224,7 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	if len(paramsIn) != 2 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
@@ -251,6 +253,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 		argUintPtr(block.Number()),
 		argHashPtr(block.Hash()),
 		&idx,
+		s.GetTxSigner(block.Number()),
 	), nil
 
 }
@@ -258,7 +261,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 func (s *RpcServer) EthGetTransactionReceipt(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	// block
 	blockHash, ok := s.blockchain.ReadTxLookup(types.StringToHash(paramsIn[0].(string)))
@@ -304,6 +307,15 @@ func (s *RpcServer) EthGetTransactionReceipt(method string, params ...any) (any,
 
 	txn := block.Transactions[txIndex]
 	raw := receipts[txIndex]
+
+	var errSender error
+	if txn.From == emptyFrom {
+		// Decrypt the from address
+		txn.From, errSender = s.GetTxSigner(block.Number()).Sender(txn)
+		if errSender != nil {
+			return nil, NewInternalError(state.NewTransitionApplicationError(err, false).Error())
+		}
+	}
 
 	logs := make([]*Log, len(raw.Logs))
 	for indx, elem := range raw.Logs {
@@ -365,7 +377,7 @@ func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
 func (s *RpcServer) GetFilterLogs(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	logFilter, e := s.filterManager.GetLogFilterFromID(paramsIn[0].(string))
 	if e != nil {
