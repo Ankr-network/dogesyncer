@@ -259,6 +259,14 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		return err
 	}
 
+	// for _, tx := range block.Transactions {
+	// 	// test read receipt
+	// 	r, err := rawdb.ReadReceipt(b.chaindb, tx.Hash())
+	// 	if err == nil {
+	// 		fmt.Println("ReadReceipt", tx.Hash(), r.GasUsed)
+	// 	}
+	// }
+
 	// Write the header to the chain
 	header.ComputeHash()
 	if err := b.WriteHeader(header); err != nil {

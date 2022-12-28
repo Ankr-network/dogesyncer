@@ -46,7 +46,7 @@ func (s *RpcServer) Web3ClientVersion(method string, params ...any) (any, Error)
 func (s *RpcServer) Web3Sha3(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {
-		return nil, err
+		return nil, NewInvalidParamsError(err.Error())
 	}
 	res, errWbe3 := s.endpoints.Web3.Sha3(paramsIn[0].(string))
 	if errWbe3 != nil {
