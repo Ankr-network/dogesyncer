@@ -1,10 +1,11 @@
 package rpc
 
 import (
+	"errors"
 	"reflect"
 )
 
-func GetPrams(params ...any) ([]any, Error) {
+func GetPrams(params ...any) ([]any, error) {
 	res := []any{}
 	if reflect.Slice == reflect.TypeOf(params).Kind() {
 		if reflect.Slice == reflect.TypeOf(params[0]).Kind() {
@@ -14,8 +15,8 @@ func GetPrams(params ...any) ([]any, Error) {
 			}
 			return res, nil
 		}
-		return nil, NewInvalidParamsError("Invalid params")
+		return nil, errors.New("Invalid params")
 	} else {
-		return nil, NewInvalidParamsError("Invalid params")
+		return nil, errors.New("Invalid params")
 	}
 }
