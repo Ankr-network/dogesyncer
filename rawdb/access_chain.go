@@ -168,7 +168,7 @@ func WriteTransactions(db ethdb.Database, txes []*types.Transaction) error {
 	batch := db.Batch()
 
 	for _, tx := range txes {
-		err := batch.Set(ethdb.TxesDBI, tx.Hash().Bytes(), tx.MarshalStoreRLPTo(nil))
+		err := batch.Set(ethdb.TxesDBI, tx.Hash().Bytes(), tx.MarshalRLPTo(nil))
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func WriteTransactions(db ethdb.Database, txes []*types.Transaction) error {
 }
 
 func WriteTransaction(db ethdb.Database, tx *types.Transaction) error {
-	return db.Set(ethdb.TxesDBI, tx.Hash().Bytes(), tx.MarshalStoreRLPTo(nil))
+	return db.Set(ethdb.TxesDBI, tx.Hash().Bytes(), tx.MarshalRLPTo(nil))
 }
 
 func ReadTransaction(db ethdb.Database, hash types.Hash) (*types.Transaction, error) {
@@ -193,7 +193,7 @@ func ReadTransaction(db ethdb.Database, hash types.Hash) (*types.Transaction, er
 
 	if ok {
 		tx := &types.Transaction{}
-		err = tx.UnmarshalStoreRLP(v)
+		err = tx.UnmarshalRLP(v)
 		if err != nil {
 			return nil, err
 		}
