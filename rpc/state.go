@@ -101,7 +101,7 @@ func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
 	if len(paramsIn) != 3 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
 	}
-	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[2].(string), s.blockchain)
 	if numErr != nil {
 		return nil, NewInvalidParamsError(numErr.Error())
 	}
@@ -111,7 +111,7 @@ func (s *RpcServer) GetStorageAt(method string, params ...any) (any, Error) {
 		return nil, NewInvalidParamsError(itrie.ErrStateNotFound.Error())
 	}
 
-	storage, err := s.blockchain.GetStorage(header.StateRoot, types.StringToAddress(paramsIn[0].(string)), types.StringToHash("0x0"))
+	storage, err := s.blockchain.GetStorage(header.StateRoot, types.StringToAddress(paramsIn[0].(string)), types.StringToHash(paramsIn[1].(string)))
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
