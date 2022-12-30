@@ -61,7 +61,7 @@ func NewPebbleDB(dir string, logger hclog.Logger) ethdb.Database {
 	}
 	return &pebbleDB{
 		d:      p,
-		wo:     pebble.Sync,
+		wo:     pebble.NoSync,
 		logger: logger,
 	}
 }
