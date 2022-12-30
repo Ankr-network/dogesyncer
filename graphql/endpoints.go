@@ -14,10 +14,10 @@ import (
 type ethTxPoolStore interface {
 	//// GetNonce returns the next nonce for this address
 	//GetNonce(addr types.Address) uint64
-	//
+
 	//// AddTx adds a new transaction to the tx pool
 	//AddTx(tx *types.Transaction) error
-	//
+
 	//// GetPendingTx gets the pending transaction from the transaction pool, if it's present
 	//GetPendingTx(txHash types.Hash) (*types.Transaction, bool)
 }

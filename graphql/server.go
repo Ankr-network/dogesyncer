@@ -3,7 +3,8 @@ package graphql
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ankr/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/rpc"
 	"github.com/graph-gophers/graphql-go"
 	_ "github.com/graph-gophers/graphql-go"
 	"github.com/hashicorp/go-hclog"
@@ -35,17 +36,17 @@ import (
 //}
 
 type GraphQLService struct {
-	logger     hclog.Logger
-	config     *Config
-	ui         *GraphiQL
-	handler    *handler
-	blockchain *blockchain.Blockchain
+	logger  hclog.Logger
+	config  *Config
+	ui      *GraphiQL
+	handler *handler
+	//blockchain *blockchain.Blockchain
 }
 
 type Config struct {
-	Store GraphQLStore
-	Addr  *net.TCPAddr
-	//Forks                    chain.Forks
+	Store                    GraphQLStore
+	Addr                     *net.TCPAddr
+	Forks                    chain.Forks
 	ChainID                  uint64
 	AccessControlAllowOrigin []string
 	BlockRangeLimit          uint64
@@ -64,11 +65,12 @@ type handler struct {
 	Schema *graphql.Schema
 }
 
-func NewGraphQLService(logger hclog.Logger, blockchain *blockchain.Blockchain, config *Config) error {
+func NewGraphQLService(logger hclog.Logger, rpcServer *rpc.RpcServer, config *Config) error {
 	q := Resolver{
 		backend: config.Store,
 		//chainID: config.ChainID,
 		//filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, config.BlockRangeLimit),
+		rpcServer: rpcServer,
 	}
 
 	s, err := graphql.ParseSchema(schema, &q)
@@ -77,11 +79,11 @@ func NewGraphQLService(logger hclog.Logger, blockchain *blockchain.Blockchain, c
 	}
 
 	srv := &GraphQLService{
-		logger:     logger.Named("graphql"),
-		config:     config,
-		ui:         &GraphiQL{},
-		handler:    &handler{Schema: s},
-		blockchain: blockchain,
+		logger:  logger.Named("graphql"),
+		config:  config,
+		ui:      &GraphiQL{},
+		handler: &handler{Schema: s},
+		//blockchain: blockchain,
 	}
 
 	// start http server
