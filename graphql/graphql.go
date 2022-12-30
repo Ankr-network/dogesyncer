@@ -1065,7 +1065,6 @@ type Resolver struct {
 	backend       GraphQLStore
 	chainID       uint64
 	filterManager *rpc.FilterManager
-	rpcServer     *rpc.RpcServer
 }
 
 func (r *Resolver) Block(ctx context.Context, args struct {

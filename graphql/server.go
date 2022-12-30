@@ -13,34 +13,11 @@ import (
 	"time"
 )
 
-//var graphqlSchema *graphql.Schema
-//
-//const graphQLDepth = 10
-
-//const ( // local service
-//	EthBlockNumber = "eth_blockNumber"
-//)
-//
-//var (
-//	HandlerMap = map[string]rpc.RpcFunc{
-//		EthBlockNumber: blockNumber,
-//	}
-//)
-
-//type GraphServer struct {
-//	logger     hclog.Logger
-//	blockchain *blockchain.Blockchain
-//	addr       string
-//	port       string
-//	handlerMap map[string]rpc.RpcFunc
-//}
-
 type GraphQLService struct {
 	logger  hclog.Logger
 	config  *Config
 	ui      *GraphiQL
 	handler *handler
-	//blockchain *blockchain.Blockchain
 }
 
 type Config struct {
@@ -65,12 +42,11 @@ type handler struct {
 	Schema *graphql.Schema
 }
 
-func NewGraphQLService(logger hclog.Logger, rpcServer *rpc.RpcServer, config *Config) error {
+func NewGraphQLService(logger hclog.Logger, config *Config) error {
 	q := Resolver{
-		backend: config.Store,
-		//chainID: config.ChainID,
-		//filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, config.BlockRangeLimit),
-		rpcServer: rpcServer,
+		backend:       config.Store,
+		chainID:       config.ChainID,
+		filterManager: rpc.NewFilterManager(hclog.NewNullLogger(), config.Store, config.BlockRangeLimit),
 	}
 
 	s, err := graphql.ParseSchema(schema, &q)
@@ -83,7 +59,6 @@ func NewGraphQLService(logger hclog.Logger, rpcServer *rpc.RpcServer, config *Co
 		config:  config,
 		ui:      &GraphiQL{},
 		handler: &handler{Schema: s},
-		//blockchain: blockchain,
 	}
 
 	// start http server
@@ -193,57 +168,3 @@ func middlewareFactory(config *Config) func(http.Handler) http.Handler {
 		})
 	}
 }
-
-//func NewGraphServer(logger hclog.Logger, blockchain *blockchain.Blockchain, addr, port string) *GraphServer {
-//	g := &GraphServer{
-//		logger:     logger.Named("graphql"),
-//		blockchain: blockchain,
-//		addr:       addr,
-//		port:       port,
-//	}
-//	g.initMethods()
-//	return g
-//}
-//
-//func (g *GraphServer) initMethods() {
-//	g.handlerMap = map[string]rpc.RpcFunc{
-//		"eth_blockNumber": g.blockNumber,
-//	}
-//}
-//
-//// Resolver is the top-level object in the GraphQL hierarchy.
-//type Resolver struct {
-//	//backendHandler map[string]func(rpc.Request, interface{}) []byte
-//	backendHandler map[string]rpc.RpcFunc
-//}
-//
-//func (g *GraphServer) RegisterHandler() error {
-//	q := Resolver{
-//		backendHandler: g.handlerMap,
-//	}
-//
-//	s, err := graphql.ParseSchema(schema, &q, graphql.MaxDepth(graphQLDepth), graphql.MaxParallelism(2*runtime.NumCPU()-1))
-//	if err != nil {
-//		return err
-//	}
-//
-//	graphqlSchema = s
-//
-//	svc := fiber.New(fiber.Config{
-//		Prefork:               false,
-//		ServerHeader:          "doge syncer team",
-//		DisableStartupMessage: true,
-//		JSONEncoder:           sonic.Marshal,
-//		JSONDecoder:           sonic.Unmarshal,
-//	})
-//
-//	svc.Get("/graphql/ui", graphQLUI)
-//	svc.Post("/graphql", graphQL)
-//
-//	return nil
-//}
-//
-//func (g *GraphServer) blockNumber(method string, params ...any) any {
-//	num := strconv.FormatInt(int64(g.blockchain.Header().Number), 16)
-//	return strings.Join([]string{"0x", num}, "")
-//}
