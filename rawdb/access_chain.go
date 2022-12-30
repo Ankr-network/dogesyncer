@@ -207,7 +207,7 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 
 	for _, rx := range receipts {
 		// fmt.Println("WrteReceipt", rx.TxHash.String(), rx.GasUsed)
-		err := batch.Set(ethdb.ReceiptsDBI, rx.TxHash.Bytes(), rx.MarshalRLPTo(nil))
+		err := batch.Set(ethdb.ReceiptsDBI, rx.TxHash.Bytes(), rx.MarshalStoreRLPTo(nil))
 		if err != nil {
 			return err
 		}
@@ -220,7 +220,7 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 }
 
 func WrteReceipt(db ethdb.Database, receipt *types.Receipt) error {
-	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalRLPTo(nil))
+	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalStoreRLPTo(nil))
 }
 
 func ReadReceipt(db ethdb.Database, hash types.Hash) (*types.Receipt, error) {
@@ -233,7 +233,7 @@ func ReadReceipt(db ethdb.Database, hash types.Hash) (*types.Receipt, error) {
 	}
 
 	if ok {
-		err = receipt.UnmarshalRLP(v)
+		err = receipt.UnmarshalStoreRLP(v)
 		if err != nil {
 			return nil, err
 		}
