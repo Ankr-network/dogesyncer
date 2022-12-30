@@ -207,7 +207,7 @@ func toTransaction(
 	txSigner crypto.TxSigner,
 ) *transaction {
 
-	if t.From == emptyFrom {
+	if t.From == emptyFrom && txSigner != nil {
 		// Decrypt the from address
 		from, _ := txSigner.Sender(t)
 		t.From = from

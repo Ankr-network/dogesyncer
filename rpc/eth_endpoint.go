@@ -180,8 +180,6 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	if !ok {
 		return nil, NewInvalidRequestError("Invalid Request Error")
 	}
-	// blockJson, _ := json.Marshal(toBlock(res, paramsIn[1].(bool)))
-	// fmt.Println(string(blockJson))
 	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
 
