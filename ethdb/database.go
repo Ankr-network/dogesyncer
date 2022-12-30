@@ -12,7 +12,6 @@ var (
 	TxLookUpDBI = "lkup"
 	ReceiptsDBI = "rept"
 	TODBI       = "todi" // total difficulty
-	SnapDBI     = "snap" // consensus snapshot
 	CodeDBI     = "code" // save contract code
 )
 
