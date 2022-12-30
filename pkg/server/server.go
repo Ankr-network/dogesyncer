@@ -9,7 +9,9 @@ import (
 
 	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/ethdb"
 	"github.com/ankr/dogesyncer/ethdb/mdbx"
+	"github.com/ankr/dogesyncer/ethdb/pebble"
 	"github.com/ankr/dogesyncer/helper/common"
 	"github.com/ankr/dogesyncer/helper/progress"
 	"github.com/ankr/dogesyncer/network"
@@ -86,8 +88,13 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 	}
 
 	// create database
+	var db ethdb.Database
 
-	db := mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"), logger.Named("mdbx"))
+	if config.DbType == "pebble" {
+		db = pebble.NewPebbleDB(filepath.Join(config.DataDir, "blockchain"), logger.Named("pebble"))
+	} else {
+		db = mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"), logger.Named("mdbx"))
+	}
 
 	// start blockchain object
 	stateStorage, err := func() (itrie.Storage, error) {

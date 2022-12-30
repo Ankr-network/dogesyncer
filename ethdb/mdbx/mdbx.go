@@ -2,10 +2,11 @@ package mdbx
 
 import (
 	"bytes"
+	"sync"
+
 	"github.com/ankr/dogesyncer/ethdb"
 	"github.com/hashicorp/go-hclog"
 	"github.com/torquem-ch/mdbx-go/mdbx"
-	"sync"
 )
 
 type NewValue struct {
@@ -47,7 +48,6 @@ var (
 		ethdb.HeadDBI,
 		ethdb.TODBI,
 		ethdb.ReceiptsDBI,
-		ethdb.SnapDBI,
 		ethdb.CodeDBI,
 		ethdb.TxLookUpDBI,
 	}

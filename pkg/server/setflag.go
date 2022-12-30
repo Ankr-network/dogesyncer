@@ -51,6 +51,13 @@ func SetFlags(cmd *cobra.Command) {
 		)
 
 		cmd.Flags().StringVar(
+			&params.rawConfig.DbType,
+			dbTypeFlag,
+			defaultConfig.DbType,
+			"the database type",
+		)
+
+		cmd.Flags().StringVar(
 			&params.rawConfig.GenesisPath,
 			genesisPathFlag,
 			defaultConfig.GenesisPath,
