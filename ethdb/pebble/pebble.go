@@ -20,6 +20,7 @@ func NewPebbleDB(dir string, logger hclog.Logger) ethdb.Database {
 	defer cache.Unref()
 	opts := &pebble.Options{
 		Cache:                       cache,
+		BytesPerSync:                32 << 20,
 		DisableWAL:                  false,
 		FormatMajorVersion:          pebble.FormatNewest,
 		L0CompactionThreshold:       2,
