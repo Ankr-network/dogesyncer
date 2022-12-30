@@ -941,10 +941,6 @@ func (b *Blockchain) GetAvgGasPrice() *big.Int {
 
 // GetBlockByHash returns the block using the block hash
 func (b *Blockchain) GetBlockByHash(blkHash types.Hash, full bool) (*types.Block, bool) {
-	// fmt.Println("THIS START", hash)
-	// if b.isStopped() {
-	// 	return nil, false
-	// }
 
 	b.wg.Add(1)
 	defer b.wg.Done()
