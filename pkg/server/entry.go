@@ -39,7 +39,7 @@ func Run(cmd *cobra.Command, args []string) {
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
 	rpcServer.Start(ctx)
 
-	address, _ := net.ResolveTCPAddr("tcp", "127.0.0.1:9001")
+	address, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:9001")
 	conf := &graphql.Config{
 		Store:   hub,
 		Addr:    address,
