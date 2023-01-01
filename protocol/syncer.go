@@ -350,14 +350,20 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			var (
 				target            uint64 = p.status.Number
 				currentSyncHeight        = ancestor.Number + 1
+				blockAmount              = maxSkeletonHeadersAmount
 			)
 
 			// sync finished
 			if currentSyncHeight >= target {
 				continue
 			}
-			blockAmount := maxSkeletonHeadersAmount
+
+			if target-currentSyncHeight < maxSkeletonHeadersAmount {
+				blockAmount = int(target - currentSyncHeight)
+			}
+
 			for {
+
 				sk := &skeleton{
 					server: s.server,
 					amount: int64(blockAmount),
