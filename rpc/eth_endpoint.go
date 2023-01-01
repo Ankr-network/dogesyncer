@@ -120,7 +120,7 @@ func GetNumericBlockNumber(numberParam string, blockchain *blockchain.Blockchain
 		return 0, fmt.Errorf("fetching the pending header is not supported")
 
 	default:
-		blockHeight, err := strconv.ParseUint(strings.TrimPrefix(numberParam, "0x"), 16, 64)
+		blockHeight, err := strconv.ParseUint(numberParam, 0, 64)
 		if err != nil {
 			return 0, err
 		}

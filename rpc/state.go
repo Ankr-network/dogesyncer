@@ -1,13 +1,14 @@
 package rpc
 
 import (
+	"encoding/json"
 	"fmt"
-	"math/big"
-
+	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/state"
 	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
 	"github.com/ankr/dogesyncer/types"
 	"github.com/dogechain-lab/fastrlp"
+	"math/big"
 )
 
 type GetBalanceParams struct {
@@ -166,26 +167,32 @@ func (s *RpcServer) Call(method string, params ...any) (any, Error) {
 		err    error
 	)
 
-	var gp *GetBalanceParams
-	err = gp.Unmarshal(params...)
+	paramsIn, err := GetPrams(params...)
 	if err != nil {
 		return nil, NewInvalidParamsError(err.Error())
 	}
-	if *gp.Number == PendingBlockNumber || *gp.Number == EarliestBlockNumber {
-		return nil, NewInvalidParamsError("not support pending and earliest block query")
+	if len(paramsIn) != 2 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
 	}
 
-	header, found := s.blockchain.GetHeaderByNumber(uint64(*gp.Number))
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[1].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
+	}
+
+	header, found := s.blockchain.GetHeaderByNumber(blockNum)
 	if !found {
-
+		return nil, NewInvalidParamsError(blockchain.ErrNoBlockHeader.Error())
 	}
 
-	// todo deserialization
-	var tx *TxnArgs
-
-	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
-	if *tx.Gas == 0 {
-		*tx.Gas = argUint64(header.GasLimit)
+	// deserialization
+	tx := new(TxnArgs)
+	params0, err := json.Marshal(paramsIn[0])
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if err := json.Unmarshal(params0, tx); err != nil {
+		return nil, NewInvalidParamsError(err.Error())
 	}
 
 	transition, err := s.executor.BeginTxn(header.StateRoot, header, header.Miner)
@@ -194,6 +201,11 @@ func (s *RpcServer) Call(method string, params ...any) (any, Error) {
 	}
 
 	trans, err := decodeTxn(tx, *transition)
+
+	// If the caller didn't supply the gas limit in the message, then we set it to maximum possible => block gas limit
+	if trans.Gas == 0 {
+		trans.Gas = header.GasLimit
+	}
 
 	result, err := transition.Apply(trans)
 	if err != nil {
