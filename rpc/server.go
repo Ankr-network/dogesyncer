@@ -127,6 +127,7 @@ func (s *RpcServer) initmethods() {
 
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
+		"net_peerCount": s.NetPeerCount,
 
 		"eth_getFilterLogs":       s.GetFilterLogs,
 		"eth_getLogs":             s.GetLogs,
@@ -137,6 +138,7 @@ func (s *RpcServer) initmethods() {
 		"eth_getStorageAt":        s.GetStorageAt,
 		"eth_call":                s.Call,
 		"eth_getTransactionCount": s.GetTransactionCount,
+		"eth_estimateGas":         s.EstimateGas,
 
 		"eth_syncing":                             s.EthSyncing,
 		"eth_gasPrice":                            s.EthGasPrice,

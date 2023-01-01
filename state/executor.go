@@ -535,6 +535,8 @@ var (
 	ErrNotEnoughFunds        = errors.New("not enough funds for transfer with given value")
 	ErrAllGasUsed            = errors.New("all gas used")
 	ErrExecutionStop         = errors.New("execution stop")
+	ErrStateNotFound         = errors.New("given root and slot not found in storage")
+	ErrInsufficientFunds     = errors.New("insufficient funds for execution")
 )
 
 type TransitionApplicationError struct {
