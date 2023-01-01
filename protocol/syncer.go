@@ -314,7 +314,6 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		p        *SyncPeer
 		ancestor *types.Header
 		err      error
-		blockCh  = make(chan []*types.Block, 4096)
 	)
 
 	for {
@@ -354,9 +353,8 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			)
 
 			// sync finished
-			if currentSyncHeight == target {
-				close(blockCh)
-				return
+			if currentSyncHeight >= target {
+				continue
 			}
 			blockAmount := maxSkeletonHeadersAmount
 			for {
