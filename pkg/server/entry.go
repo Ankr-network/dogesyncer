@@ -30,7 +30,7 @@ func Run(cmd *cobra.Command, args []string) {
 
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, serverConfig.RpcAddr, serverConfig.RpcPort)
 	rpcServer.Start(ctx)
-
+	rpcServer.WebsocketStart()
 	m.logger.Info("server boot over...")
 	svc.Wait()
 }
