@@ -159,7 +159,7 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	}
 	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0].(string)), paramsIn[1].(bool))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
@@ -178,7 +178,7 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	}
 	res, ok := s.blockchain.GetBlockByNumber(blockHeight, paramsIn[1].(bool))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
@@ -194,16 +194,16 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 	// tx
 	tx, ok := s.blockchain.GetTxnByHash(types.StringToHash(paramsIn[0].(string)))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	// block
 	blockHash, ok := s.blockchain.ReadTxLookup(tx.Hash())
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	block, ok := s.blockchain.GetBlockByHash(blockHash, true)
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	for idx, txn := range block.Transactions {
 		if txn.Hash() == tx.Hash() {
@@ -234,7 +234,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 	// get block
 	block, ok := s.blockchain.GetBlockByNumber(blockNum, true)
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	// tx index
 	index, indexErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[1].(string), "0x"), 16, 64)
@@ -242,7 +242,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 		return nil, NewInvalidParamsError(numErr.Error())
 	}
 	if index >= uint64(len(block.Transactions)) {
-		return nil, NewInvalidParamsError(fmt.Errorf("this transaction is not found").Error())
+		return nil, NewMethodNotFoundError(fmt.Errorf("this transaction is not found").Error())
 	}
 	tx := block.Transactions[index]
 	idx := int(index)
