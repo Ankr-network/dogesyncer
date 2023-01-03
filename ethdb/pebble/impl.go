@@ -38,7 +38,12 @@ func (p *pebbleDB) Get(dbi string, k []byte) ([]byte, bool, error) {
 }
 
 func (p *pebbleDB) Close() error {
-	return p.d.Close()
+	err := p.d.Flush()
+	if err != nil {
+		p.logger.Error("flush cache", "err", err)
+	}
+	err = p.d.Close()
+	return err
 }
 
 func (p *pebbleDB) Remove(dbi string, k []byte) error {
