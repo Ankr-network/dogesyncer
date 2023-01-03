@@ -460,15 +460,19 @@ func (f *FilterManager) getLogsFromBlocks(query *LogQuery) ([]*Log, error) {
 	logs := make([]*Log, 0)
 
 	for i := from; i <= to; i++ {
+		fmt.Println("----------------", i)
 		block, ok := f.store.GetBlockByNumber(i, true)
 		if !ok {
 			break
 		}
+		fmt.Println("----------------", i, len(block.Transactions))
 
 		if len(block.Transactions) == 0 {
 			// do not check logs if no txs
 			continue
 		}
+
+		fmt.Println("----------------", i, query.FromBlock, query.ToBlock, len(query.Addresses), len(query.Topics))
 
 		blockLogs, err := f.getLogsFromBlock(query, block)
 		if err != nil {
