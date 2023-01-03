@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ankr/dogesyncer/chain"
 	"github.com/ankr/dogesyncer/contracts/systemcontracts"
@@ -114,6 +115,7 @@ func (b *Blockchain) SelfCheck() {
 	var newheader *types.Header
 
 	latest, ok := rawdb.ReadHeadHash(b.chaindb)
+	b.logger.Info("selfcheck", "latest", latest, "ok", ok)
 	if !ok {
 		panic("it shouldn't happen, can't read latest hash")
 	}
@@ -231,6 +233,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	// Log the information
 	b.logger.Info("write block", "num", block.Number(), "parent", block.ParentHash())
+	stx := time.Now()
 
 	// write body
 	if err := b.writeBody(block); err != nil {
@@ -272,11 +275,12 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 		"number", header.Number,
 		"hash", header.Hash,
 		"txns", len(block.Transactions),
+		"elapse", time.Since(stx),
 	}
 
 	if prevHeader, ok := b.GetHeaderByNumber(header.Number - 1); ok {
 		diff := header.Timestamp - prevHeader.Timestamp
-		logArgs = append(logArgs, "generation_time_in_seconds", diff)
+		logArgs = append(logArgs, "generation_time", diff)
 	}
 
 	b.logger.Info("new block", logArgs...)
@@ -771,22 +775,6 @@ func (b *Blockchain) VerifyHeader(header *types.Header) error {
 		return fmt.Errorf("header self check err %s != %s", header.Hash, types.HeaderHash(header))
 	}
 	return nil
-}
-
-func (b *Blockchain) addHeaderSnap(header *types.Header) error {
-
-	extra, err := types.GetIbftExtra(header)
-	if err != nil {
-		return err
-	}
-	s := &types.Snapshot{
-		Hash:   header.Hash.String(),
-		Number: header.Number,
-		Votes:  []*types.Vote{},
-		Set:    extra.Validators,
-	}
-
-	return rawdb.WriteSnap(b.chaindb, header.Number, s)
 }
 
 func (b *Blockchain) advanceHead(newHeader *types.Header) (*big.Int, error) {

@@ -14,6 +14,7 @@ type Config struct {
 	GenesisPath       string   `json:"chain_config"`
 	SecretsConfigPath string   `json:"secrets_config"`
 	DataDir           string   `json:"data_dir"`
+	DbType            string   `json:"db_type"`
 	BlockGasTarget    string   `json:"block_gas_target"`
 	GRPCAddr          string   `json:"grpc_addr"`
 	HttpAddr          string   `json:"rpc_addr"`
@@ -30,6 +31,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		GenesisPath:    "genesis.json",
 		DataDir:        "dogechain",
+		DbType:         "mdbx",
 		BlockGasTarget: "0x00",
 		LogLevel:       "INFO",
 		HttpAddr:       "127.0.0.1",
@@ -82,6 +84,7 @@ type ServerConfig struct {
 	Network *network.Config
 
 	DataDir     string
+	DbType      string
 	RestoreFile *string
 
 	Seal           bool
