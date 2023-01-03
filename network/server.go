@@ -7,6 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ankr/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/dial"
+	"github.com/ankr/dogesyncer/network/discovery"
+	peerEvent "github.com/ankr/dogesyncer/network/event"
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p"
@@ -19,11 +25,6 @@ import (
 	noise "github.com/libp2p/go-libp2p-noise"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/network/dial"
-	"github.com/sunvim/dogesyncer/network/discovery"
-	peerEvent "github.com/sunvim/dogesyncer/network/event"
-	"github.com/sunvim/dogesyncer/secrets"
 	rawGrpc "google.golang.org/grpc"
 )
 
@@ -560,6 +561,27 @@ func (s *Server) DisconnectFromPeer(peer peer.ID, reason string) {
 	}
 }
 
+func (s *Server) ForgetPeer(peer peer.ID, reason string) {
+	s.logger.Warn("forget peer", "id", peer, "reason", reason)
+
+	s.DisconnectFromPeer(peer, reason)
+	s.removePeer(peer)
+	s.forgetPeer(peer)
+}
+
+func (s *Server) forgetPeer(peer peer.ID) {
+	p := s.GetPeerInfo(peer)
+	if p == nil || len(p.Addrs) == 0 { // already removed?
+		s.logger.Info("peer already removed from store", "id", peer)
+
+		return
+	}
+
+	s.logger.Info("remove peer from store", "id", peer)
+
+	s.RemoveFromPeerStore(p)
+}
+
 var (
 	// Anything below 35s is prone to false timeouts, as seen from empirical test data
 	DefaultJoinTimeout   = 100 * time.Second
@@ -755,7 +777,9 @@ func (s *Server) SubscribeCh() (<-chan *peerEvent.PeerEvent, error) {
 		case <-s.closeCh:
 			close(ch)
 		default:
-			ch <- evnt
+			if !helper.IsChanClosed(ch) {
+				ch <- evnt
+			}
 		}
 	})
 	if err != nil {

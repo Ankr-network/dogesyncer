@@ -1,52 +1,17 @@
 package mdbx
 
 import (
-	"bytes"
-	"runtime"
-	"time"
-
-	"github.com/sunvim/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/ethdb"
 	"github.com/torquem-ch/mdbx-go/mdbx"
 )
 
 func (d *MdbxDB) Set(dbi string, k []byte, v []byte) error {
-
-	nv := nvpool.Get().(*NewValue)
-	nv.Reset()
-	nv.Dbi = dbi
-	nv.Key = k
-	nv.Val = v
-	nv.life = time.Now().Unix()
-
-	buf := strbuf.Get().(*bytes.Buffer)
-	buf.Reset()
-	buf.WriteString(dbi)
-	buf.Write(k)
-	d.cache.Set(buf.String(), nv)
-	strbuf.Put(buf)
-
-	return nil
+	return d.env.Update(func(txn *mdbx.Txn) error {
+		return txn.Put(d.dbi[dbi], k, v, 0)
+	})
 }
 
 func (d *MdbxDB) Get(dbi string, k []byte) ([]byte, bool, error) {
-
-	buf := strbuf.Get().(*bytes.Buffer)
-	buf.Reset()
-	buf.WriteString(dbi)
-	buf.Write(k)
-
-	var (
-		nv *NewValue
-		ok bool
-	)
-
-	// query from cache
-	nv, ok = d.cache.Get(buf.String())
-	strbuf.Put(buf)
-	if ok {
-		return nv.Val, true, nil
-	}
-
 	var (
 		v []byte
 		r bool
@@ -80,19 +45,6 @@ func (d *MdbxDB) Sync() error {
 }
 
 func (d *MdbxDB) Close() error {
-	// flush cache data to database
-	runtime.LockOSThread()
-	tx, err := d.env.BeginTxn(nil, 0)
-	if err != nil {
-		panic(err)
-	}
-	d.cache.Range(func(s string, nv *NewValue) bool {
-		tx.Put(d.dbi[nv.Dbi], nv.Key, nv.Val, mdbx.Upsert)
-		return true
-	})
-	tx.Commit()
-	runtime.UnlockOSThread()
-
 	d.env.Sync(true, false)
 	for _, dbi := range d.dbi {
 		d.env.CloseDBI(dbi)
@@ -102,7 +54,7 @@ func (d *MdbxDB) Close() error {
 }
 
 func (d *MdbxDB) Batch() ethdb.Batch {
-	return &KVBatch{env: d.env, dbi: d.dbi}
+	return &KVBatch{db: d}
 }
 
 func (d *MdbxDB) Remove(dbi string, k []byte) error {

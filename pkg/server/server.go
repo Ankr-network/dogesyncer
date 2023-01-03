@@ -2,22 +2,26 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"path/filepath"
 
+	"github.com/ankr/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/ethdb/mdbx"
+	"github.com/ankr/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/helper/progress"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/ankr/dogesyncer/pkg/server/proto"
+	"github.com/ankr/dogesyncer/secrets"
+	"github.com/ankr/dogesyncer/state"
+	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
+	"github.com/ankr/dogesyncer/state/runtime"
+	"github.com/ankr/dogesyncer/state/runtime/evm"
+	"github.com/ankr/dogesyncer/state/runtime/precompiled"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/hashicorp/go-hclog"
-	"github.com/sunvim/dogesyncer/blockchain"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/ethdb/mdbx"
-	"github.com/sunvim/dogesyncer/helper/common"
-	"github.com/sunvim/dogesyncer/network"
-	"github.com/sunvim/dogesyncer/pkg/server/proto"
-	"github.com/sunvim/dogesyncer/secrets"
-	"github.com/sunvim/dogesyncer/state"
-	itrie "github.com/sunvim/dogesyncer/state/immutable-trie"
-	"github.com/sunvim/dogesyncer/state/runtime/evm"
-	"github.com/sunvim/dogesyncer/state/runtime/precompiled"
 	"google.golang.org/grpc"
 )
 
@@ -83,7 +87,7 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 
 	// create database
 
-	db := mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"))
+	db := mdbx.NewMDBX(filepath.Join(config.DataDir, "blockchain"), logger.Named("mdbx"))
 
 	// start blockchain object
 	stateStorage, err := func() (itrie.Storage, error) {
@@ -226,4 +230,90 @@ func (s *Server) Close() error {
 
 	return nil
 
+}
+
+type jsonRPCHub struct {
+	// state state.State
+	restoreProgression *progress.ProgressionWrapper
+
+	*blockchain.Blockchain
+	// *txpool.TxPool
+	*state.Executor
+	*network.Server
+}
+
+func (j *jsonRPCHub) GetPeers() int {
+	return len(j.Server.Peers())
+}
+
+func (j *jsonRPCHub) ApplyTxn(
+	header *types.Header,
+	txn *types.Transaction,
+) (result *runtime.ExecutionResult, err error) {
+	blockCreator, err := j.GetConsensus().GetBlockCreator(header)
+	if err != nil {
+		return nil, err
+	}
+
+	transition, err := j.BeginTxn(header.StateRoot, header, blockCreator)
+
+	if err != nil {
+		return
+	}
+
+	result, err = transition.Apply(txn)
+
+	return
+}
+
+func (j *jsonRPCHub) GetSyncProgression() *progress.Progression {
+	// restore progression
+	if restoreProg := j.restoreProgression.GetProgression(); restoreProg != nil {
+		return restoreProg
+	}
+	return nil
+}
+
+func (j *jsonRPCHub) StateAtTransaction(block *types.Block, txIndex int) (*state.Transition, error) {
+	if block.Number() == 0 {
+		return nil, errors.New("no transaction in genesis")
+	}
+
+	if txIndex < 0 {
+		return nil, errors.New("invalid transaction index")
+	}
+
+	// get parent header
+	parent, exists := j.GetParent(block.Header)
+	if !exists {
+		return nil, fmt.Errorf("parent %s not found", block.ParentHash())
+	}
+
+	// block creator
+	blockCreator, err := j.GetConsensus().GetBlockCreator(block.Header)
+	if err != nil {
+		return nil, err
+	}
+
+	// begin transition, use parent block
+	txn, err := j.BeginTxn(parent.StateRoot, parent, blockCreator)
+	if err != nil {
+		return nil, err
+	}
+
+	if txIndex == 0 {
+		return txn, nil
+	}
+
+	for idx, tx := range block.Transactions {
+		if idx == txIndex {
+			return txn, nil
+		}
+
+		if _, err := txn.Apply(tx); err != nil {
+			return nil, fmt.Errorf("transaction %s failed: %w", tx.Hash(), err)
+		}
+	}
+
+	return nil, fmt.Errorf("transaction index %d out of range for block %s", txIndex, block.Hash())
 }

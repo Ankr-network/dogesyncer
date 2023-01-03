@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 
+	"github.com/ankr/dogesyncer/helper/keccak"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/sunvim/dogesyncer/helper/keccak"
 )
 
 // IstanbulExtra defines the structure of the extra field for Istanbul
@@ -166,7 +166,7 @@ func CalculateHeaderHash(h *Header) ([]byte, error) {
 
 	// This will effectively remove the Seal and Committed Seal fields,
 	// while keeping proposer vanity and validator set
-	// because extra.Validators is what we got from `h` in the first place.
+	// because extra.Validators are what we got from `h` in the first place.
 	PutIbftExtraValidators(h, extra.Validators)
 
 	vv := arena.NewArray()

@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper"
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper"
+	"github.com/ankr/dogesyncer/types"
 )
 
 func ReadTD(db ethdb.Database, hash types.Hash) (*big.Int, bool) {
-	v, ok, err := db.Get(ethdb.TDDBI, hash[:])
+	v, ok, err := db.Get(ethdb.TODBI, hash[:])
 	if err != nil || !ok {
 		return nil, false
 	}
@@ -23,7 +23,7 @@ func ReadTD(db ethdb.Database, hash types.Hash) (*big.Int, bool) {
 }
 
 func WriteTD(db ethdb.Database, hash types.Hash, number uint64) error {
-	return db.Set(ethdb.TDDBI, hash[:], helper.EncodeVarint(number))
+	return db.Set(ethdb.TODBI, hash[:], helper.EncodeVarint(number))
 }
 
 func ReadHeadNumber(db ethdb.Database) (uint64, bool) {
@@ -98,15 +98,37 @@ func ReadHeader(db ethdb.Database, hash types.Hash) (*types.Header, error) {
 	return header, nil
 }
 
-func WriteBody(db ethdb.Database, hash types.Hash, body *types.Body) error {
-	if len(body.Transactions) == 0 {
+func WriteTxLookUp(db ethdb.Database, number uint64, txes []*types.Transaction) error {
+	if len(txes) == 0 {
 		return nil
 	}
+	blockNumber := helper.EncodeVarint(number)
+	for _, tx := range txes {
+		db.Set(ethdb.TxLookUpDBI, tx.Hash().Bytes(), blockNumber)
+	}
+	return nil
+}
+
+func ReadTxLookUp(db ethdb.Database, txhash types.Hash) (uint64, bool) {
+	nums, ok, _ := db.Get(ethdb.TxLookUpDBI, txhash[:])
+	if ok {
+		num, _ := helper.DecodeVarint(nums)
+		return num, true
+	}
+	return 0, false
+}
+
+func WriteBody(db ethdb.Database, hash types.Hash, txes []*types.Transaction) error {
+
+	if len(txes) == 0 {
+		return nil
+	}
+
 	buf := helper.BufPool.Get().(*bytes.Buffer)
 	defer helper.BufPool.Put(buf)
 	buf.Reset()
 
-	for _, v := range body.Transactions {
+	for _, v := range txes {
 		buf.Write(v.Hash().Bytes())
 	}
 
@@ -138,6 +160,10 @@ func ReadBody(db ethdb.Database, hash types.Hash) ([]types.Hash, error) {
 }
 
 func WriteTransactions(db ethdb.Database, txes []*types.Transaction) error {
+
+	if len(txes) == 0 {
+		return nil
+	}
 
 	batch := db.Batch()
 
@@ -180,7 +206,7 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 	batch := db.Batch()
 
 	for _, rx := range receipts {
-		err := batch.Set(ethdb.ReceiptsDBI, rx.TxHash.Bytes(), rx.MarshalRLPTo(nil))
+		err := batch.Set(ethdb.ReceiptsDBI, rx.TxHash.Bytes(), rx.MarshalStoreRLPTo(nil))
 		if err != nil {
 			return err
 		}
@@ -193,7 +219,7 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 }
 
 func WrteReceipt(db ethdb.Database, receipt *types.Receipt) error {
-	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalRLPTo(nil))
+	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalStoreRLPTo(nil))
 }
 
 func ReadReceipt(db ethdb.Database, hash types.Hash) (*types.Receipt, error) {
@@ -206,7 +232,7 @@ func ReadReceipt(db ethdb.Database, hash types.Hash) (*types.Receipt, error) {
 	}
 
 	if ok {
-		err = receipt.UnmarshalRLP(v)
+		err = receipt.UnmarshalStoreRLP(v)
 		if err != nil {
 			return nil, err
 		}

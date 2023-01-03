@@ -1,10 +1,10 @@
 package server
 
 import (
-	"github.com/sunvim/dogesyncer/secrets"
-	"github.com/sunvim/dogesyncer/secrets/awsssm"
-	"github.com/sunvim/dogesyncer/secrets/hashicorpvault"
-	"github.com/sunvim/dogesyncer/secrets/local"
+	"github.com/ankr/dogesyncer/secrets"
+	"github.com/ankr/dogesyncer/secrets/awsssm"
+	"github.com/ankr/dogesyncer/secrets/hashicorpvault"
+	"github.com/ankr/dogesyncer/secrets/local"
 )
 
 // secretsManagerBackends defines the SecretManager factories for different

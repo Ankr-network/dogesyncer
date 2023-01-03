@@ -8,14 +8,22 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/any.proto";
 
 service V1 {
+    // deprecated methods
+
     rpc GetCurrent(google.protobuf.Empty) returns (V1Status);
     rpc GetObjectsByHash(HashRequest) returns (Response);
     rpc GetHeaders(GetHeadersRequest) returns (Response);
     rpc Notify(NotifyReq) returns (google.protobuf.Empty);
+
+    // new service for better syncing performance
+
+    // Returns blocks from begin to end (which is determined by server)
+    rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse);
+    // Returns server's status
+    rpc GetStatus(google.protobuf.Empty) returns (SyncPeerStatus);
 }
 
 message GetCurrentResponse {
-
 }
 
 message GetHeadersRequest {
@@ -60,4 +68,27 @@ message V1Status {
 message NotifyReq {
     V1Status status = 1;
     google.protobuf.Any raw = 2;
+}
+
+// GetBlocksRequest is a request for GetBlocks
+message GetBlocksRequest {
+    // The height of beginning block to sync
+    uint64 from = 1;
+    // The height of ending block to sync
+    uint64 to = 2;
+}
+
+message GetBlocksResponse {
+    // The height of beginning block
+    uint64 from = 1;
+    // The height of ending block 
+    uint64 to = 2;
+    // RLP encoded block data
+    repeated bytes blocks = 3;
+}
+
+// SyncPeerStatus contains peer status
+message SyncPeerStatus {
+  // Latest block height
+  uint64 number = 1;
 }

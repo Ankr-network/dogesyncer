@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ankr/dogesyncer/chain"
 	"github.com/stretchr/testify/assert"
-	"github.com/sunvim/dogesyncer/chain"
 )
 
 type codeHelper struct {

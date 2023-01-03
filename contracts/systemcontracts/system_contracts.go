@@ -1,6 +1,6 @@
 package systemcontracts
 
-import "github.com/sunvim/dogesyncer/types"
+import "github.com/ankr/dogesyncer/types"
 
 var (
 	// ValidatorSet contract address

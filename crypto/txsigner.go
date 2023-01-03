@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"math/bits"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/dogechain-lab/fastrlp"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/helper/keccak"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 // TxSigner is a utility interface used to recover data from a transaction

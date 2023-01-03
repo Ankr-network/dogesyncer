@@ -3,15 +3,15 @@ package network
 import (
 	"math/big"
 
+	"github.com/ankr/dogesyncer/network/common"
+	peerEvent "github.com/ankr/dogesyncer/network/event"
+	"github.com/ankr/dogesyncer/network/grpc"
+	"github.com/ankr/dogesyncer/network/identity"
+	"github.com/ankr/dogesyncer/network/proto"
 	"github.com/libp2p/go-libp2p-core/network"
 	"github.com/libp2p/go-libp2p-core/peer"
 	kbucket "github.com/libp2p/go-libp2p-kbucket"
 	"github.com/libp2p/go-libp2p-kbucket/keyspace"
-	"github.com/sunvim/dogesyncer/network/common"
-	peerEvent "github.com/sunvim/dogesyncer/network/event"
-	"github.com/sunvim/dogesyncer/network/grpc"
-	"github.com/sunvim/dogesyncer/network/identity"
-	"github.com/sunvim/dogesyncer/network/proto"
 	rawGrpc "google.golang.org/grpc"
 )
 

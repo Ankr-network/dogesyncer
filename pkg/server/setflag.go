@@ -3,8 +3,8 @@ package server
 import (
 	"fmt"
 
+	"github.com/ankr/dogesyncer/network"
 	"github.com/spf13/cobra"
-	"github.com/sunvim/dogesyncer/network"
 )
 
 func SetFlags(cmd *cobra.Command) {

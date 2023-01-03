@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunvim/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types"
 )
 
 var emptyAddr types.Address

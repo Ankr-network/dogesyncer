@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/ankr/dogesyncer/types"
 	"github.com/cornelk/hashmap"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 var (
@@ -239,6 +239,17 @@ func (pq *PriorityQueue) Peek() *types.Block {
 		return pq.items[0]
 	}
 	return nil
+}
+
+func (pq *PriorityQueue) Latest() uint64 {
+	var num uint64
+	pq.lock.Lock()
+	if len(pq.items) == 0 {
+		return 0
+	}
+	num = pq.items[len(pq.items)].Number()
+	pq.lock.Unlock()
+	return num
 }
 
 // Empty returns a bool indicating if there are any items left

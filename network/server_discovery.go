@@ -6,13 +6,13 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/network/discovery"
+	"github.com/ankr/dogesyncer/network/grpc"
+	"github.com/ankr/dogesyncer/network/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/libp2p/go-libp2p-core/peerstore"
 	kb "github.com/libp2p/go-libp2p-kbucket"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/network/discovery"
-	"github.com/sunvim/dogesyncer/network/grpc"
-	"github.com/sunvim/dogesyncer/network/proto"
 	rawGrpc "google.golang.org/grpc"
 )
 
@@ -43,7 +43,7 @@ func (s *Server) GetBootnodeConnCount() int64 {
 
 // getProtoStream returns an active protocol stream if present, otherwise
 // it returns nil
-func (s *Server) getProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
+func (s *Server) GetProtoStream(protocol string, peerID peer.ID) *rawGrpc.ClientConn {
 	s.peersLock.Lock()
 	defer s.peersLock.Unlock()
 
@@ -69,7 +69,7 @@ func (s *Server) NewDiscoveryClient(peerID peer.ID) (proto.DiscoveryClient, erro
 	}
 
 	// Check if there is an active stream connection already
-	if protoStream := s.getProtoStream(common.DiscProto, peerID); protoStream != nil {
+	if protoStream := s.GetProtoStream(common.DiscProto, peerID); protoStream != nil {
 		return proto.NewDiscoveryClient(protoStream), nil
 	}
 

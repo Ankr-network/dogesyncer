@@ -3,9 +3,9 @@ package network
 import (
 	"net"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/secrets"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/secrets"
 )
 
 // Config details the params for the base networking server

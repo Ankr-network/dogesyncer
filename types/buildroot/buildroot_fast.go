@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/sunvim/dogesyncer/helper/keccak"
+	"github.com/ankr/dogesyncer/helper/keccak"
 )
 
 func min(i, j int) int {

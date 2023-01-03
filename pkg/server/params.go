@@ -12,12 +12,12 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/hcl"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/ankr/dogesyncer/network/common"
+	"github.com/ankr/dogesyncer/secrets"
+	"github.com/ankr/dogesyncer/types"
 	"github.com/multiformats/go-multiaddr"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/network"
-	"github.com/sunvim/dogesyncer/network/common"
-	"github.com/sunvim/dogesyncer/secrets"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 const (

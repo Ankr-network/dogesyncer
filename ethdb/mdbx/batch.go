@@ -3,7 +3,7 @@ package mdbx
 import (
 	"runtime"
 
-	"github.com/torquem-ch/mdbx-go/mdbx"
+	"github.com/sunvim/utils/cachem"
 )
 
 type keyvalue struct {
@@ -14,18 +14,16 @@ type keyvalue struct {
 
 // KVBatch is a batch write for leveldb
 type KVBatch struct {
-	env    *mdbx.Env
-	dbi    map[string]mdbx.DBI
 	writes []keyvalue
+	db     *MdbxDB
 }
 
 func copyBytes(b []byte) (copiedBytes []byte) {
 	if b == nil {
 		return nil
 	}
-	copiedBytes = make([]byte, len(b))
+	copiedBytes = cachem.Malloc(len(b))
 	copy(copiedBytes, b)
-
 	return
 }
 
@@ -40,20 +38,21 @@ func (b *KVBatch) Write() error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	tx, err := b.env.BeginTxn(nil, 0)
+	var err error
+
+	txn, err := b.db.env.BeginTxn(nil, 0)
 	if err != nil {
 		panic(err)
 	}
-
-	defer func() {
-		tx.Commit()
-	}()
+	defer txn.Commit()
 
 	for _, keyvalue := range b.writes {
-		err = tx.Put(b.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
+		err = txn.Put(b.db.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
 		if err != nil {
 			panic(err)
 		}
+		cachem.Free(keyvalue.key)
+		cachem.Free(keyvalue.value)
 	}
 
 	return nil

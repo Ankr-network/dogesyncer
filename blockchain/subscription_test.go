@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ankr/dogesyncer/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/sunvim/dogesyncer/types"
 )
 
 func TestSubscription(t *testing.T) {

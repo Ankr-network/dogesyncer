@@ -6,20 +6,20 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/ankr/dogesyncer/chain"
+	"github.com/ankr/dogesyncer/contracts/systemcontracts"
+	"github.com/ankr/dogesyncer/contracts/upgrader"
+	"github.com/ankr/dogesyncer/contracts/validatorset"
+	"github.com/ankr/dogesyncer/crypto"
+	"github.com/ankr/dogesyncer/ethdb"
+	"github.com/ankr/dogesyncer/helper/common"
+	"github.com/ankr/dogesyncer/rawdb"
+	"github.com/ankr/dogesyncer/state"
+	itrie "github.com/ankr/dogesyncer/state/immutable-trie"
+	"github.com/ankr/dogesyncer/types"
+	"github.com/ankr/dogesyncer/types/buildroot"
 	"github.com/hashicorp/go-hclog"
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/sunvim/dogesyncer/chain"
-	"github.com/sunvim/dogesyncer/contracts/systemcontracts"
-	"github.com/sunvim/dogesyncer/contracts/upgrader"
-	"github.com/sunvim/dogesyncer/contracts/validatorset"
-	"github.com/sunvim/dogesyncer/crypto"
-	"github.com/sunvim/dogesyncer/ethdb"
-	"github.com/sunvim/dogesyncer/helper/common"
-	"github.com/sunvim/dogesyncer/rawdb"
-	"github.com/sunvim/dogesyncer/state"
-	itrie "github.com/sunvim/dogesyncer/state/immutable-trie"
-	"github.com/sunvim/dogesyncer/types"
-	"github.com/sunvim/dogesyncer/types/buildroot"
 )
 
 type Blockchain struct {
@@ -41,7 +41,15 @@ type Blockchain struct {
 	difficultyCache      *lru.Cache // LRU cache for the difficulty
 
 	gpAverage *gasPriceAverage // A reference to the average gas price
+	consensus Verifier
+}
 
+type Verifier interface {
+	VerifyHeader(header *types.Header) error
+	ProcessHeaders(headers []*types.Header) error
+	GetBlockCreator(header *types.Header) (types.Address, error)
+	PreStateCommit(header *types.Header, txn *state.Transition) error
+	IsSystemTransaction(height uint64, coinbase types.Address, tx *types.Transaction) bool
 }
 
 func (b *Blockchain) Config() *chain.Chain {
@@ -91,7 +99,6 @@ func (b *Blockchain) Close() error {
 	b.executor.Stop()
 	b.stop()
 	b.wg.Wait()
-
 	return b.chaindb.Close()
 }
 
@@ -106,11 +113,22 @@ func (b *Blockchain) isStopped() bool {
 func (b *Blockchain) SelfCheck() {
 	var newheader *types.Header
 
-	latest, _ := rawdb.ReadHeadHash(b.chaindb)
-	header, _ := rawdb.ReadHeader(b.chaindb, latest)
+	latest, ok := rawdb.ReadHeadHash(b.chaindb)
+	if !ok {
+		panic("it shouldn't happen, can't read latest hash")
+	}
+	header, err := rawdb.ReadHeader(b.chaindb, latest)
+	if err != nil {
+		panic("it shouldn't happen, can't read header by specify hash")
+	}
 	_, exist := rawdb.ReadCanonicalHash(b.chaindb, header.Number)
 	if !exist { // missing latest header
-		newheader, _ = b.GetHeaderByNumber(header.Number - 1)
+		for num := header.Number - 1; num > 0; num-- {
+			newheader, ok = b.GetHeaderByNumber(num)
+			if ok {
+				break
+			}
+		}
 	}
 
 	// issue: when restart , missing state
@@ -536,7 +554,23 @@ func (b *Blockchain) getSigner(height uint64) crypto.TxSigner {
 // writeBody writes the block body to the DB.
 // Additionally, it also updates the txn lookup, for txnHash -> block lookups
 func (b *Blockchain) writeBody(block *types.Block) error {
-	return rawdb.WriteTransactions(b.chaindb, block.Transactions)
+
+	err := rawdb.WriteTransactions(b.chaindb, block.Transactions)
+	if err != nil {
+		return err
+	}
+
+	err = rawdb.WriteBody(b.chaindb, block.Hash(), block.Transactions)
+	if err != nil {
+		return err
+	}
+
+	err = rawdb.WriteTxLookUp(b.chaindb, block.Number(), block.Transactions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Blockchain) VerifyFinalizedBlock(block *types.Block) error {
@@ -827,10 +861,208 @@ func (b *Blockchain) GetBlockByNumber(blockNumber uint64, full bool) (*types.Blo
 	if !ok {
 		return nil, false
 	}
-	return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	// return rawdb.ReadBlockByHash(b.chaindb, blkHash)
+	b.wg.Add(1)
+	defer b.wg.Done()
+
+	block, ok := b.GetBlockByHash(blkHash, full)
+	if !ok {
+		return nil, false
+	}
+
+	return block, true
+	// header, err := rawdb.ReadHeader(b.chaindb, blkHash)
+	// if err != nil {
+	// 	return nil, false
+	// }
+
+	// block := &types.Block{
+	// 	Header: header,
+	// }
+
+	// if !full || header.Number == 0 {
+	// 	return block, true
+	// }
+
+	// // Load the entire block body
+	// body, err := rawdb.ReadBody(b.chaindb, blkHash)
+	// if err != nil {
+	// 	return block, true
+	// }
+
+	// // Set the transactions
+	// txs := make([]*types.Transaction, len(body)-1)
+	// for _, txhash := range body {
+	// 	// get tx
+	// 	tx, err := rawdb.ReadTransaction(b.chaindb, txhash)
+	// 	if err != nil {
+	// 		b.logger.Error("failed to read transaction", "err", err)
+	// 		return block, true
+	// 	}
+	// 	txs = append(txs, tx)
+	// }
+
+	// block.Transactions = txs
+
+	// return block, true
+
 }
 
 // SubscribeEvents returns a blockchain event subscription
 func (b *Blockchain) SubscribeEvents() Subscription {
 	return b.stream.subscribe()
+}
+
+// GetParent returns the parent header
+func (b *Blockchain) GetParent(header *types.Header) (*types.Header, bool) {
+	return b.readHeader(header.ParentHash)
+}
+
+func (b *Blockchain) GetTxnByHash(hash types.Hash) (*types.Transaction, bool) {
+	txn, err := rawdb.ReadTransaction(b.chaindb, hash)
+	if err != nil {
+		b.logger.Error("failed to read transaction", "err", err)
+		return nil, false
+	}
+	return txn, true
+}
+
+func (b *Blockchain) GetConsensus() Verifier {
+	return b.consensus
+}
+
+// GetAvgGasPrice returns the average gas price for the chain
+func (b *Blockchain) GetAvgGasPrice() *big.Int {
+	b.gpAverage.RLock()
+	defer b.gpAverage.RUnlock()
+
+	return b.gpAverage.price
+}
+
+// GetBlockByHash returns the block using the block hash
+func (b *Blockchain) GetBlockByHash(blkHash types.Hash, full bool) (*types.Block, bool) {
+
+	b.wg.Add(1)
+	defer b.wg.Done()
+
+	header, err := rawdb.ReadHeader(b.chaindb, blkHash)
+	if err != nil {
+		return nil, false
+	}
+
+	block := &types.Block{
+		Header: header,
+	}
+
+	if !full || header.Number == 0 {
+		return block, true
+	}
+
+	// Load the entire block body
+	body, err := rawdb.ReadBody(b.chaindb, blkHash)
+	if err != nil {
+		return block, true
+	}
+
+	// Set the transactions
+	txs := make([]*types.Transaction, len(body))
+	for index, txhash := range body {
+		// get tx
+		tx, err := rawdb.ReadTransaction(b.chaindb, txhash)
+		if err != nil {
+			b.logger.Error("failed to read transaction", "err", err)
+			return block, true
+		}
+		txs[index] = tx
+	}
+	block.Transactions = txs
+
+	return block, true
+}
+
+// readHeader Returns the header using the hash
+func (b *Blockchain) readHeader(hash types.Hash) (*types.Header, bool) {
+
+	hh, err := rawdb.ReadHeader(b.chaindb, hash)
+	if err != nil {
+		return nil, false
+	}
+
+	return hh, true
+}
+
+// readBody reads the block's body, using the block hash
+func (b *Blockchain) readBody(hash types.Hash) (*types.Body, bool) {
+	res := &types.Body{}
+	txsHash, err := rawdb.ReadBody(b.chaindb, hash)
+	if err != nil {
+		b.logger.Error("failed to read body", "err", err)
+		return nil, false
+	}
+	// get tx
+	txs := make([]*types.Transaction, len(txsHash))
+	for _, txHash := range txsHash {
+		tx, err := rawdb.ReadTransaction(b.chaindb, txHash)
+		if err != nil {
+			b.logger.Error("failed to read transaction", "err", err)
+			txs = append(txs, &types.Transaction{})
+		} else {
+			txs = append(txs, tx)
+		}
+	}
+	res.Transactions = txs
+	return res, true
+}
+
+// ReadTxLookup returns the block hash using the transaction hash
+func (b *Blockchain) ReadTxLookup(txHash types.Hash) (types.Hash, bool) {
+
+	// get blk num
+	blockNum, ok := rawdb.ReadTxLookUp(b.chaindb, txHash)
+	if !ok {
+		b.logger.Error("failed to read tx lookup")
+		return types.ZeroHash, false
+	}
+	// get block
+	blockHash, ok := rawdb.ReadCanonicalHash(b.chaindb, blockNum)
+	if !ok {
+		b.logger.Error("failed to read block by block num")
+		return types.ZeroHash, false
+	}
+
+	return blockHash, true
+}
+
+func (b *Blockchain) GetAccount(root types.Hash, addr types.Address) (*state.Account, error) {
+	obj, err := b.state.GetState(root, addr.Bytes())
+	if err != nil {
+		return nil, err
+	}
+
+	var account state.Account
+	if err := account.UnmarshalRlp(obj); err != nil {
+		return nil, err
+	}
+
+	return &account, nil
+}
+func (b *Blockchain) GetStorage(root types.Hash, addr types.Address, slot types.Hash) ([]byte, error) {
+	account, err := b.GetAccount(root, addr)
+
+	if err != nil {
+		return nil, err
+	}
+
+	obj, err := b.state.GetState(account.Root, slot.Bytes())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, nil
+}
+
+func (b *Blockchain) GetCode(hash types.Hash) ([]byte, error) {
+	code, _ := b.state.GetCode(hash)
+	return code, nil
 }
