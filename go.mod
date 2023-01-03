@@ -9,6 +9,7 @@ require (
 	github.com/cockroachdb/pebble v0.0.0-20221229212011-811a8c0e741b
 	github.com/cornelk/hashmap v1.0.8
 	github.com/dogechain-lab/fastrlp v0.0.0-20220523073019-b0c60fc6bb7a
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/go-kit/kit v0.12.0
 	github.com/gofiber/fiber/v2 v2.39.0
 	github.com/golang/protobuf v1.5.2
@@ -17,7 +18,7 @@ require (
 	github.com/hashicorp/go-hclog v1.3.1
 	github.com/hashicorp/go-immutable-radix v1.3.1
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/golang-lru v0.5.4
+	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/vault/api v1.8.2
 	github.com/libp2p/go-libp2p v0.23.4
