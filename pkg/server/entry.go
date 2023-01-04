@@ -36,7 +36,10 @@ func Run(cmd *cobra.Command, args []string) {
 
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
 	rpcServer.Start(ctx)
-	rpcServer.WebsocketStart()
+	err = rpcServer.WebsocketStart()
+	if err != nil {
+		panic(err)
+	}
 
 	// register close function
 	svc.Register(syncer.Close)

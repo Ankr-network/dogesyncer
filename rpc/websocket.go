@@ -29,9 +29,10 @@ func (s *RpcServer) WebsocketStart() error {
 
 	svc.Get("/wss/*", websocket.New(s.handle))
 
-	s.logger.Info("ws", "address", s.addr, "port", s.port)
+	s.logger.Info("ws", "port", "3000")
 	if err := svc.Listen(":3000"); err != nil {
 		s.logger.Error("start websocket failed")
+		return err
 	}
 	return nil
 }
@@ -113,12 +114,13 @@ func (s *RpcServer) handleWs(reqBody []byte, conn wsConn) ([]byte, error) {
 	if req.Method == "eth_subscribe" {
 		filterID, err := s.handleSubscribe(req, conn)
 		if err != nil {
+			s.logger.Error("handleSubscribe error. err:%s", err)
 			return NewRPCResponse(req.ID, "2.0", nil, err).Bytes()
 		}
 
 		resp, err := formatFilterResponse(req.ID, filterID)
-
 		if err != nil {
+			s.logger.Error("formatFilterResponse error. err:%s", err)
 			return NewRPCResponse(req.ID, "2.0", nil, err).Bytes()
 		}
 

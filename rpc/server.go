@@ -46,7 +46,7 @@ func NewRpcServer(logger hclog.Logger,
 		executor:      executor,
 		filterManager: NewFilterManager(logger, blockchain, logBlockRange),
 	}
-	go s.filterManager.Run()
+	//go s.filterManager.Run()
 
 	s.initEndpoints(store)
 	s.initmethods()
