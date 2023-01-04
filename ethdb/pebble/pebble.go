@@ -16,11 +16,11 @@ type pebbleDB struct {
 }
 
 func NewPebbleDB(dir string, logger hclog.Logger) ethdb.Database {
-	cache := pebble.NewCache(1 << 30)
+	cache := pebble.NewCache(512 << 20)
 	defer cache.Unref()
 	opts := &pebble.Options{
 		Cache:                       cache,
-		BytesPerSync:                32 << 20,
+		BytesPerSync:                4 << 20,
 		DisableWAL:                  false,
 		FormatMajorVersion:          pebble.FormatNewest,
 		L0CompactionThreshold:       2,
