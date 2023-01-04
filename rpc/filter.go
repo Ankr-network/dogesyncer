@@ -70,18 +70,15 @@ type filterBase struct {
 	expiresAt time.Time
 
 	ws wsConn
-	// todo ws wsConn
 }
 
 // newFilterBase initializes filterBase with unique ID
 func newFilterBase(ws wsConn) filterBase {
-	// todo
 	return filterBase{
 		id:        uuid.New().String(),
 		ws:        ws,
 		heapIndex: NoIndexInHeap,
 	}
-	//return filterBase{}
 }
 
 // getFilterBase returns its own reference so that child struct can return base
@@ -91,8 +88,6 @@ func (f *filterBase) getFilterBase() *filterBase {
 
 // hasWSConn returns the flag indicating this filter has websocket connection
 func (f *filterBase) hasWSConn() bool {
-	// todo return f.ws != nil
-	//return false
 	return f.ws != nil
 }
 
@@ -107,7 +102,6 @@ const ethSubscriptionTemplate = `{
 
 // writeMessageToWs sends given message to websocket stream
 func (f *filterBase) writeMessageToWs(msg string) error {
-	//todo
 	if !f.hasWSConn() {
 		return ErrNoWSConnection
 	}
@@ -121,7 +115,6 @@ func (f *filterBase) writeMessageToWs(msg string) error {
 		websocket.TextMessage,
 		v.Bytes(),
 	)
-	//return nil
 }
 
 // blockFilter is a filter to store the updates of block
@@ -371,8 +364,8 @@ func (f *FilterManager) NewBlockFilter(ws wsConn) string {
 // NewLogFilter adds new LogFilter
 func (f *FilterManager) NewLogFilter(logQuery *LogQuery, ws wsConn) string {
 	filter := &logFilter{
-		//filterBase: newFilterBase(ws),
-		query: logQuery,
+		filterBase: newFilterBase(ws),
+		query:      logQuery,
 	}
 
 	return f.addFilter(filter)
