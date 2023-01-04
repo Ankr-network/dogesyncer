@@ -37,10 +37,6 @@ type rlpObject interface {
 
 func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Empty, error) {
 
-	if !s.syncer.stxRecv {
-		return &empty.Empty{}, nil
-	}
-
 	if req.Raw == nil || len(req.Raw.Value) == 0 {
 		// malicious node conducted denial of service
 		return nil, errNilRawRequest
@@ -68,8 +64,13 @@ func (s *serviceV1) Notify(ctx context.Context, req *proto.NotifyReq) (*empty.Em
 		return nil, err
 	}
 
-	s.syncer.enqueueBlock(id, b)
 	s.syncer.updatePeerStatus(id, status)
+
+	if !s.syncer.stxRecv {
+		return &empty.Empty{}, nil
+	}
+
+	s.syncer.enqueueBlock(id, b)
 
 	return &empty.Empty{}, nil
 }

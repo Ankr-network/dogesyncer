@@ -24,6 +24,7 @@ const (
 	configFlag                   = "config"
 	genesisPathFlag              = "chain"
 	dataDirFlag                  = "data-dir"
+	dbTypeFlag                   = "db-type"
 	libp2pAddressFlag            = "libp2p"
 	natFlag                      = "nat"
 	dnsFlag                      = "dns"
@@ -217,6 +218,7 @@ func (p *serverParams) generateConfig() *ServerConfig {
 			Chain:            p.genesisConfig,
 		},
 		DataDir:        p.rawConfig.DataDir,
+		DbType:         p.rawConfig.DbType,
 		SecretsManager: p.secretsConfig,
 		BlockTime:      p.rawConfig.BlockTime,
 		LogLevel:       hclog.LevelFromString(p.rawConfig.LogLevel),

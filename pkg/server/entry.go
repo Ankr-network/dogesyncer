@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"github.com/ankr/dogesyncer/graphql"
+	"net"
 
 	"github.com/ankr/dogesyncer/helper/progress"
 	"github.com/ankr/dogesyncer/protocol"
@@ -39,6 +41,20 @@ func Run(cmd *cobra.Command, args []string) {
 	err = rpcServer.WebsocketStart()
 	if err != nil {
 		panic(err)
+	}
+
+	address, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:9001")
+	conf := &graphql.Config{
+		Store:   hub,
+		Addr:    address,
+		ChainID: uint64(m.config.Chain.Params.ChainID),
+		//AccessControlAllowOrigin: s.config.GraphQL.AccessControlAllowOrigin,
+		//BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
+		//EnablePProf:              s.config.GraphQL.EnablePprof,
+	}
+	err = graphql.NewGraphQLService(m.logger, conf)
+	if err != nil {
+		m.logger.Error("register graphql error", err)
 	}
 
 	// register close function

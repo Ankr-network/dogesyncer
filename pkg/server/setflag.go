@@ -32,6 +32,7 @@ func SetFlags(cmd *cobra.Command) {
 			"8545",
 			"rpc port",
 		)
+
 	}
 
 	// basic flags
@@ -48,6 +49,13 @@ func SetFlags(cmd *cobra.Command) {
 			dataDirFlag,
 			defaultConfig.DataDir,
 			"the data directory used for storing Dogechain-Lab Dogechain client data",
+		)
+
+		cmd.Flags().StringVar(
+			&params.rawConfig.DbType,
+			dbTypeFlag,
+			defaultConfig.DbType,
+			"the database type",
 		)
 
 		cmd.Flags().StringVar(

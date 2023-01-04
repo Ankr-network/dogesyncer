@@ -75,7 +75,7 @@ type Syncer struct {
 // NewSyncer creates a new Syncer instance
 func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchainShim, datadir string) *Syncer {
 
-	const defQueueSize = 819200
+	const defQueueSize = 2048
 	s := &Syncer{
 		logger:          logger.Named(_syncerName),
 		blockchain:      blockchain,
@@ -288,13 +288,11 @@ func (s *Syncer) WatchSync(ctx context.Context) {
 				continue
 			}
 			newblock = items[0]
-			stx := time.Now()
 			err = s.blockchain.WriteBlock(newblock)
 			if err != nil {
 				s.logger.Error("handle new block", "err", err)
 				return
 			}
-			s.logger.Info("write block", "time", time.Since(stx))
 		}
 	}
 }
@@ -314,7 +312,6 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		p        *SyncPeer
 		ancestor *types.Header
 		err      error
-		blockCh  = make(chan []*types.Block, 4096)
 	)
 
 	for {
@@ -324,8 +321,7 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 		default:
 			p = s.BestPeer()
 			if p == nil {
-				s.logger.Info("not found best peer")
-				time.Sleep(10 * time.Second)
+				time.Sleep(4 * time.Second)
 				continue
 			}
 
@@ -351,15 +347,20 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			var (
 				target            uint64 = p.status.Number
 				currentSyncHeight        = ancestor.Number + 1
+				blockAmount              = maxSkeletonHeadersAmount
 			)
 
 			// sync finished
-			if currentSyncHeight == target {
-				close(blockCh)
-				return
+			if currentSyncHeight >= target {
+				continue
 			}
-			blockAmount := maxSkeletonHeadersAmount
+
+			if target-currentSyncHeight < maxSkeletonHeadersAmount {
+				blockAmount = int(target - currentSyncHeight)
+			}
+
 			for {
+
 				sk := &skeleton{
 					server: s.server,
 					amount: int64(blockAmount),
@@ -457,7 +458,7 @@ func (s *Syncer) BestPeer() *SyncPeer {
 	s.peers.Range(func(peerID peer.ID, sp *SyncPeer) bool {
 		peerBlockNumber := sp.Number()
 		// compare block height
-		if bestPeer == nil || peerBlockNumber > bestBlockNumber {
+		if peerBlockNumber > bestBlockNumber {
 			bestPeer = sp
 			bestBlockNumber = peerBlockNumber
 		}

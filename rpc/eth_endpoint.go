@@ -120,7 +120,7 @@ func GetNumericBlockNumber(numberParam string, blockchain *blockchain.Blockchain
 		return 0, fmt.Errorf("fetching the pending header is not supported")
 
 	default:
-		blockHeight, err := strconv.ParseUint(strings.TrimPrefix(numberParam, "0x"), 16, 64)
+		blockHeight, err := strconv.ParseUint(numberParam, 0, 64)
 		if err != nil {
 			return 0, err
 		}
@@ -159,7 +159,7 @@ func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error)
 	}
 	res, ok := s.blockchain.GetBlockByHash(types.StringToHash(paramsIn[0].(string)), paramsIn[1].(bool))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
@@ -178,7 +178,7 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	}
 	res, ok := s.blockchain.GetBlockByNumber(blockHeight, paramsIn[1].(bool))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	return toBlock(res, paramsIn[1].(bool), s.GetTxSigner(res.Number())), nil
 }
@@ -194,16 +194,16 @@ func (s *RpcServer) EthGetTransactionByHash(method string, params ...any) (any, 
 	// tx
 	tx, ok := s.blockchain.GetTxnByHash(types.StringToHash(paramsIn[0].(string)))
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	// block
 	blockHash, ok := s.blockchain.ReadTxLookup(tx.Hash())
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	block, ok := s.blockchain.GetBlockByHash(blockHash, true)
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	for idx, txn := range block.Transactions {
 		if txn.Hash() == tx.Hash() {
@@ -234,7 +234,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 	// get block
 	block, ok := s.blockchain.GetBlockByNumber(blockNum, true)
 	if !ok {
-		return nil, NewInvalidRequestError("Invalid Request Error")
+		return nil, nil
 	}
 	// tx index
 	index, indexErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[1].(string), "0x"), 16, 64)
@@ -242,7 +242,7 @@ func (s *RpcServer) EthGetTransactionByBlockNumberAndIndex(method string, params
 		return nil, NewInvalidParamsError(numErr.Error())
 	}
 	if index >= uint64(len(block.Transactions)) {
-		return nil, NewInvalidParamsError(fmt.Errorf("this transaction is not found").Error())
+		return nil, NewMethodNotFoundError(fmt.Errorf("this transaction is not found").Error())
 	}
 	tx := block.Transactions[index]
 	idx := int(index)
@@ -350,13 +350,28 @@ func (s *RpcServer) EthGetTransactionReceipt(method string, params ...any) (any,
 
 }
 
-func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
-	query := new(LogQuery)
+type LogQueryRequest struct {
+	BlockHash string `json:"blockhash"`
+	FromBlock string `json:"fromBlock"`
+	ToBlock   string `json:"toBlock"`
 
-	if len(params) == 0 {
+	Addresses []string      `json:"addresses"`
+	Topics    []interface{} `json:"topics"`
+}
+
+func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	if len(paramsIn) == 0 {
 		return nil, NewInvalidParamsError("not enough params")
 	}
-	d, e := json.Marshal(params[0])
+
+	query := new(LogQueryRequest)
+
+	d, e := json.Marshal(paramsIn[0])
 	if e != nil {
 		return nil, NewInvalidParamsError(e.Error())
 	}
@@ -365,7 +380,49 @@ func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
 		return nil, NewInvalidParamsError(e.Error())
 	}
 
-	logs, e := s.filterManager.GetLogs(query)
+	fromBlock, err := StringToBlockNumber(query.FromBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	toBlock, err := StringToBlockNumber(query.ToBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	addresses := make([]types.Address, 0, len(query.Addresses))
+	for _, address := range query.Addresses {
+		addresses = append(addresses, types.StringToAddress(address))
+	}
+	topics := make([][]types.Hash, 0, len(query.Topics))
+	for _, ts := range query.Topics {
+		switch ts.(type) {
+		case string:
+			topics = append(topics, []types.Hash{types.StringToHash(ts.(string))})
+
+		case []interface{}:
+			topic := make([]types.Hash, 0, len(ts.([]interface{})))
+			for _, t := range ts.([]interface{}) {
+				tps, ok := t.(string)
+				if !ok {
+					return nil, NewInvalidParamsError("invalid topic")
+				}
+				topic = append(topic, types.StringToHash(tps))
+			}
+		}
+	}
+
+	queryLog := &LogQuery{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Addresses: addresses,
+		Topics:    topics,
+	}
+
+	if query.BlockHash != "" {
+		blockHash := types.StringToHash(query.BlockHash)
+		queryLog.BlockHash = &blockHash
+	}
+
+	logs, e := s.filterManager.GetLogs(queryLog)
 	if e != nil {
 		return nil, &internalError{err: e.Error()}
 	}
@@ -393,12 +450,18 @@ func (s *RpcServer) UninstallFilter(method string, params ...any) (any, Error) {
 }
 
 func (s *RpcServer) NewFilter(method string, params ...any) (any, Error) {
-	query := new(LogQuery)
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
 
-	if len(params) == 0 {
+	if len(paramsIn) == 0 {
 		return nil, NewInvalidParamsError("not enough params")
 	}
-	d, e := json.Marshal(params[0])
+
+	query := new(LogQueryRequest)
+
+	d, e := json.Marshal(paramsIn[0])
 	if e != nil {
 		return nil, NewInvalidParamsError(e.Error())
 	}
@@ -406,5 +469,47 @@ func (s *RpcServer) NewFilter(method string, params ...any) (any, Error) {
 	if e := json.Unmarshal(d, query); e != nil {
 		return nil, NewInvalidParamsError(e.Error())
 	}
-	return s.filterManager.NewLogFilter(query, nil), nil
+
+	fromBlock, err := StringToBlockNumber(query.FromBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	toBlock, err := StringToBlockNumber(query.ToBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	addresses := make([]types.Address, 0, len(query.Addresses))
+	for _, address := range query.Addresses {
+		addresses = append(addresses, types.StringToAddress(address))
+	}
+	topics := make([][]types.Hash, 0, len(query.Topics))
+	for _, ts := range query.Topics {
+		switch ts.(type) {
+		case string:
+			topics = append(topics, []types.Hash{types.StringToHash(ts.(string))})
+
+		case []interface{}:
+			topic := make([]types.Hash, 0, len(ts.([]interface{})))
+			for _, t := range ts.([]interface{}) {
+				tps, ok := t.(string)
+				if !ok {
+					return nil, NewInvalidParamsError("invalid topic")
+				}
+				topic = append(topic, types.StringToHash(tps))
+			}
+		}
+	}
+
+	queryLog := &LogQuery{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Addresses: addresses,
+		Topics:    topics,
+	}
+
+	if query.BlockHash != "" {
+		blockHash := types.StringToHash(query.BlockHash)
+		queryLog.BlockHash = &blockHash
+	}
+	return s.filterManager.NewLogFilter(queryLog, nil), nil
 }
