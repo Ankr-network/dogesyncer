@@ -135,7 +135,11 @@ func (b *Blockchain) SelfCheck() {
 
 	// issue: when restart , missing state
 	for index := header.Number; index > 0; index-- {
-		newheader, _ = b.GetHeaderByNumber(index)
+		var exist bool
+		newheader, exist = b.GetHeaderByNumber(index)
+		if !exist {
+			continue
+		}
 		_, err := rawdb.ReadState(b.chaindb, newheader.StateRoot)
 		if err == nil {
 			break
