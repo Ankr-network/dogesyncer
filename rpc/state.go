@@ -5,12 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ankr/dogesyncer/blockchain"
+	"github.com/ankr/dogesyncer/crypto"
 	"github.com/ankr/dogesyncer/helper/hex"
 	"github.com/ankr/dogesyncer/state"
 	"github.com/ankr/dogesyncer/state/runtime"
 	"github.com/ankr/dogesyncer/types"
+	dogeProto "github.com/dogechain-lab/dogechain/txpool/proto"
 	"github.com/dogechain-lab/fastrlp"
+	pbAny "github.com/golang/protobuf/ptypes/any"
 	"math/big"
+	"strings"
+)
+
+const (
+	txMaxSize   = 128 * 1024
+	topicNameV1 = "txpool/0.1"
 )
 
 type GetBalanceParams struct {
@@ -304,7 +313,7 @@ func (s *RpcServer) EstimateGas(method string, params ...any) (any, Error) {
 		accountBalance := big.NewInt(0)
 		acc, err := s.blockchain.GetAccount(header.StateRoot, trans.From)
 
-		if err != nil && !errors.Is(err, ErrStateNotFound) {
+		if err != nil && !errors.Is(err, state.ErrStateNotFound) {
 			// An unrelated error occurred, return it
 			return nil, NewInvalidParamsError(err.Error())
 		} else if err == nil {
@@ -438,6 +447,47 @@ func (s *RpcServer) EstimateGas(method string, params ...any) (any, Error) {
 	return hex.EncodeUint64(highEnd), nil
 }
 
+func (s *RpcServer) SendRawTransaction(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	if len(paramsIn) != 1 {
+		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
+	}
+
+	input, ok := paramsIn[0].(string)
+	if !ok || !strings.HasPrefix(input, "0x") {
+		return nil, NewInvalidParamsError("invalid param")
+	}
+
+	buf, err := hex.DecodeHex(input)
+	if err != nil {
+		return nil, NewInvalidParamsError(fmt.Errorf("raw tx input decode hex err: %w", err).Error())
+	}
+
+	tx := &types.Transaction{}
+	if err := tx.UnmarshalRLP(buf); err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+
+	if err := validateTx(tx, s.blockchain, s.signer, s.gasLimit); err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	rawTx := &dogeProto.Txn{
+		Raw: &pbAny.Any{
+			Value: tx.MarshalRLP(),
+		},
+	}
+
+	if err := s.topic.Publish(rawTx); err != nil {
+		return nil, NewInternalError(err.Error())
+	}
+
+	return tx.Hash().String(), nil
+}
+
 type TxnArgs struct {
 	From     *types.Address
 	To       *types.Address
@@ -504,4 +554,79 @@ func decodeTxn(arg *TxnArgs, txExecutor state.Transition) (*types.Transaction, e
 	txn.Hash()
 
 	return txn, nil
+}
+
+func validateTx(tx *types.Transaction, chain *blockchain.Blockchain, signer *crypto.EIP155Signer, priceLimit uint64) error {
+	// Check the transaction size to overcome DOS Attacks
+	if uint64(len(tx.MarshalRLP())) > txMaxSize {
+		return state.ErrOversizedData
+	}
+
+	// Check if the transaction has a strictly positive value
+	if tx.Value.Sign() < 0 {
+		return state.ErrNegativeValue
+	}
+
+	// Check if the transaction is signed properly
+
+	// Extract the sender
+	from, signerErr := signer.Sender(tx)
+	if signerErr != nil {
+		return state.ErrExtractSignature
+	}
+
+	// If the from field is set, check that
+	// it matches the signer
+	if tx.From != types.ZeroAddress &&
+		tx.From != from {
+		return state.ErrInvalidSender
+	}
+
+	// If no address was set, update it
+	if tx.From == types.ZeroAddress {
+		tx.From = from
+	}
+
+	// Reject underpriced transactions
+	if tx.IsUnderpriced(priceLimit) {
+		return state.ErrUnderpriced
+	}
+
+	// Grab the state root for the latest block
+	header := chain.Header()
+	account, err := chain.GetAccount(header.StateRoot, tx.From)
+	if err != nil {
+		if err == state.ErrStateNotFound {
+			return state.ErrInsufficientFunds
+		}
+		return err
+	}
+
+	// Check nonce ordering
+	if account.Nonce > tx.Nonce {
+		return state.ErrNonceTooLow
+	}
+
+	// Check if the sender has enough funds to execute the transaction
+	if account.Balance.Cmp(tx.Cost()) < 0 {
+		return state.ErrInsufficientFunds
+	}
+
+	// Make sure the transaction has more gas than the basic transaction fee
+	forks := chain.Config().Params.Forks.At(header.Number)
+	intrinsicGas, err := state.TransactionGasCost(tx, forks.Homestead, forks.Istanbul)
+	if err != nil {
+		return err
+	}
+
+	if tx.Gas < intrinsicGas {
+		return state.ErrIntrinsicGas
+	}
+
+	// Grab the block gas limit for the latest block
+	if tx.Gas > header.GasLimit {
+		return state.ErrBlockLimitExceeded
+	}
+
+	return nil
 }

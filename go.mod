@@ -8,6 +8,7 @@ require (
 	github.com/bytedance/sonic v1.5.0
 	github.com/cockroachdb/pebble v0.0.0-20221229212011-811a8c0e741b
 	github.com/cornelk/hashmap v1.0.8
+	github.com/dogechain-lab/dogechain v1.2.1
 	github.com/dogechain-lab/fastrlp v0.0.0-20220523073019-b0c60fc6bb7a
 	github.com/go-kit/kit v0.12.0
 	github.com/gofiber/fiber/v2 v2.39.0
