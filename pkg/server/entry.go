@@ -36,7 +36,7 @@ func Run(cmd *cobra.Command, args []string) {
 		Executor:           m.executor,
 	}
 
-	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
+	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub, m.network, serverConfig.PriceLimit)
 	rpcServer.Start(ctx)
 
 	address, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:9001")

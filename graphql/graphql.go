@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ankr/dogesyncer/state"
 	"math/big"
 
 	"github.com/ankr/dogesyncer/crypto"
@@ -117,7 +118,7 @@ func (a *Account) Balance(ctx context.Context) (argtype.Big, error) {
 
 	// Extract the account balance
 	acc, err := a.backend.GetAccount(root, a.address)
-	if errors.Is(err, rpc.ErrStateNotFound) {
+	if errors.Is(err, state.ErrStateNotFound) {
 		// Account not found, return an empty account
 		return defaultBalance, nil
 	} else if err != nil {
@@ -135,7 +136,7 @@ func (a *Account) TransactionCount(ctx context.Context) (argtype.Uint64, error) 
 
 	// Extract the account balance
 	acc, err := a.backend.GetAccount(root, a.address)
-	if errors.Is(err, rpc.ErrStateNotFound) {
+	if errors.Is(err, state.ErrStateNotFound) {
 		// Account not found, return an empty account
 		return 0, nil
 	} else if err != nil {
@@ -152,7 +153,7 @@ func (a *Account) Code(ctx context.Context) (argtype.Bytes, error) {
 	}
 
 	acc, err := a.backend.GetAccount(root, a.address)
-	if errors.Is(err, rpc.ErrStateNotFound) {
+	if errors.Is(err, state.ErrStateNotFound) {
 		// Account not found, return default value
 		return argtype.Bytes{}, nil
 	} else if err != nil {
@@ -176,7 +177,7 @@ func (a *Account) Storage(ctx context.Context, args struct{ Slot types.Hash }) (
 	// Get the storage for the passed in location
 	result, err := a.backend.GetStorage(root, a.address, args.Slot)
 	if err != nil {
-		if errors.Is(err, rpc.ErrStateNotFound) {
+		if errors.Is(err, state.ErrStateNotFound) {
 			return types.ZeroHash, nil
 		}
 
