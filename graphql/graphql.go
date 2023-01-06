@@ -617,9 +617,11 @@ func (b *Block) resolve(ctx context.Context) (*types.Block, error) {
 		return b.block, nil
 	}
 
-	if b.numberOrHash == nil {
+	if b.numberOrHash == nil || *b.numberOrHash.BlockNumber < 0 {
+		blockNumber := b.backend.Header().Number
+		latestBlockNumber := rpc.BlockNumber(blockNumber)
 		b.numberOrHash = &rpc.BlockNumberOrHash{
-			BlockNumber: latestBlockNum,
+			BlockNumber: &latestBlockNumber,
 		}
 	}
 
