@@ -168,7 +168,6 @@ func (s *RpcServer) handleReq(req Request) ([]byte, Error) {
 		return nil, err
 	}
 	data, err2 := json.Marshal(res)
-	//data, err := json.Marshal(res)
 	if err2 != nil {
 		return nil, NewInternalError("Internal error")
 	}
@@ -176,12 +175,12 @@ func (s *RpcServer) handleReq(req Request) ([]byte, Error) {
 }
 
 func (s *RpcServer) handleSubscribe(req Request, conn wsConn) (string, Error) {
-	var params []interface{}
-	if err := json.Unmarshal(req.Params, &params); err != nil {
+	params, err := GetPrams(req.Params)
+	if err != nil {
 		return "", NewInvalidRequestError("Invalid json request")
 	}
 
-	if len(params) == 0 {
+	if len(params) < 1 {
 		return "", NewInvalidParamsError("Invalid params")
 	}
 
@@ -224,8 +223,8 @@ func formatFilterResponse(id interface{}, resp string) (string, Error) {
 }
 
 func (s *RpcServer) handleUnsubscribe(req Request) (bool, Error) {
-	var params []interface{}
-	if err := json.Unmarshal(req.Params, &params); err != nil {
+	params, err := GetPrams(req.Params)
+	if err != nil {
 		return false, NewInvalidRequestError("Invalid json request")
 	}
 

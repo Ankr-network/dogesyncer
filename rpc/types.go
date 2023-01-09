@@ -16,10 +16,10 @@ import (
 type RpcFunc func(method string, params ...any) (any, Error)
 
 type Request struct {
-	Version string          `json:"jsonrpc,omitempty"`
-	Method  string          `json:"method"`
-	Params  json.RawMessage `json:"params"`
-	ID      any             `json:"id"`
+	Version string `json:"jsonrpc,omitempty"`
+	Method  string `json:"method"`
+	Params  []any  `json:"params"`
+	ID      any    `json:"id"`
 }
 
 type Response struct {
