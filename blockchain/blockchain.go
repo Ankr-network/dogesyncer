@@ -232,6 +232,11 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	b.wg.Add(1)
 	defer b.wg.Done()
 
+	// check latest number
+	if block.Number() <= b.Header().Number {
+		return nil
+	}
+
 	// nil checked by verify functions
 	header := block.Header
 

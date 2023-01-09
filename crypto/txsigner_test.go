@@ -1,6 +1,9 @@
 package crypto
 
 import (
+	"github.com/ankr/dogesyncer/helper/hex"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"math/big"
 	"testing"
 
@@ -138,3 +141,29 @@ func TestEIP155Signer_ChainIDMismatch(t *testing.T) {
 		}
 	}
 }
+
+func TestSignTransaction(t *testing.T) {
+	privateKey, err := crypto.HexToECDSA("5267eb25eb9bd1dffbb88e8cdf9cefa0a1b5f6db737e707c3ef8c7xxxxxxxxxxx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	to := types.StringToAddress("0xBf3Aabb78e96c18a425C39D82C2B6505aA86940F")
+	txn := &types.Transaction{
+		To:       &to,
+		Value:    big.NewInt(1000 * params.GWei),
+		GasPrice: big.NewInt(300 * params.GWei),
+		Gas:      25000,
+		Nonce:    1,
+	}
+
+	signer := NewEIP155Signer(2000)
+
+	signedTx, signErr := signer.SignTx(txn, privateKey)
+	if signErr != nil {
+		t.Fatalf("Unable to sign transaction")
+	}
+
+	t.Log(signedTx.Hash(), hex.EncodeToHex(signedTx.MarshalRLP()))
+}
+
+//curl -X POST -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":3,"method":"eth_sendRawTransaction","params":["0xf86b018545d964b8008261a894bf3aabb78e96c18a425c39d82c2b6505aa86940f85e8d4a5100080820fc4a04c1a8b186a487819be646711038790218036bfe336442a831d2d31adf4f492faa0298077e12743ce8f574af1a09b77f781564a9356689d84acde3600c4951d500d"]}' https://dogechain.ankr.com

@@ -36,7 +36,7 @@ func Run(cmd *cobra.Command, args []string) {
 		Executor:           m.executor,
 	}
 
-	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
+	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub, m.network, serverConfig.PriceLimit)
 	rpcServer.Start(ctx)
 	err = rpcServer.WebsocketStart()
 	if err != nil {
@@ -52,6 +52,11 @@ func Run(cmd *cobra.Command, args []string) {
 		//BlockRangeLimit:          s.config.GraphQL.BlockRangeLimit,
 		//EnablePProf:              s.config.GraphQL.EnablePprof,
 	}
+	err = graphql.NewGraphQLService(m.logger, conf)
+	if err != nil {
+		m.logger.Error("register graphql error", err)
+	}
+
 	err = graphql.NewGraphQLService(m.logger, conf)
 	if err != nil {
 		m.logger.Error("register graphql error", err)
