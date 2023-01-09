@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/bytedance/sonic"
@@ -11,30 +12,34 @@ import (
 	"sync"
 )
 
-func (s *RpcServer) WebsocketStart() error {
-	svc := fiber.New(fiber.Config{
-		Prefork:               false,
-		ServerHeader:          "doge syncer team",
-		DisableStartupMessage: true,
-		JSONEncoder:           sonic.Marshal,
-		JSONDecoder:           sonic.Unmarshal,
-	})
-	svc.Use("*", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			c.Locals("allowed", true)
-			return c.Next()
+func (s *RpcServer) WebsocketStart(ctx context.Context) error {
+	go func(ctx context.Context) {
+		svc := fiber.New(fiber.Config{
+			Prefork:               false,
+			ServerHeader:          "doge syncer team",
+			DisableStartupMessage: true,
+			JSONEncoder:           sonic.Marshal,
+			JSONDecoder:           sonic.Unmarshal,
+		})
+		svc.Use("*", func(c *fiber.Ctx) error {
+			if websocket.IsWebSocketUpgrade(c) {
+				c.Locals("allowed", true)
+				return c.Next()
+			}
+			return fiber.ErrUpgradeRequired
+		})
+
+		svc.Get("/wss/*", websocket.New(s.handle))
+
+		addr := fmt.Sprintf("%s:%s", s.websocketAddr, s.websocketPort)
+		s.logger.Info("websocket", "addr", addr)
+		if err := svc.Listen(addr); err != nil {
+			s.logger.Error("start websocket failed", "err", err)
+			return
 		}
-		return fiber.ErrUpgradeRequired
-	})
-
-	svc.Get("/wss/*", websocket.New(s.handle))
-
-	s.logger.Info("ws", "port", "3000")
-	if err := svc.Listen(":3000"); err != nil {
-		s.logger.Error("start websocket failed", "err", err)
-		return err
-	}
-	s.logger.Info("websocket start")
+		s.logger.Info("websocket start success.")
+		return
+	}(ctx)
 	return nil
 }
 

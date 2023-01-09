@@ -38,9 +38,12 @@ type RpcServer struct {
 	topic         *network.Topic
 	signer        *crypto.EIP155Signer
 	gasLimit      uint64
+	websocketAddr string
+	websocketPort string
 }
 
-func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, executor *state.Executor, addr, port string, store JSONRPCStore, pspServer *network.Server, gasLimit uint64) *RpcServer {
+func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, executor *state.Executor, addr, port string,
+	store JSONRPCStore, pspServer *network.Server, gasLimit uint64, wsAddr, wsPort string) *RpcServer {
 	topic, err := pspServer.NewTopic(topicNameV1, &proto.Txn{})
 	if err != nil {
 		panic(err)
@@ -57,6 +60,8 @@ func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, execut
 		p2p:           pspServer,
 		gasLimit:      gasLimit,
 		topic:         topic,
+		websocketAddr: wsAddr,
+		websocketPort: wsPort,
 	}
 	go s.filterManager.Run()
 
