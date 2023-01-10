@@ -677,7 +677,7 @@ func (f *FilterManager) processEvent(evnt *blockchain.Event) {
 
 		// process new chain to include new logs for LogFilter
 		if processErr := f.appendLogsToFilters(header); processErr != nil {
-			f.logger.Error(fmt.Sprintf("Unable to process block, %v", processErr))
+			f.logger.Info(fmt.Sprintf("unable to process block, %v", processErr))
 		}
 	}
 }
