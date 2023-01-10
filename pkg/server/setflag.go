@@ -35,7 +35,7 @@ func SetFlags(cmd *cobra.Command) {
 		cmd.Flags().Bool(
 			enableWSFlag,
 			false,
-			"enable websocket",
+			"the flag indicating that node enable websocket service",
 		)
 		cmd.Flags().String(
 			websocketAddress,
@@ -50,7 +50,7 @@ func SetFlags(cmd *cobra.Command) {
 		cmd.Flags().Bool(
 			enableGraphQLFlag,
 			false,
-			"enable graphQL",
+			"the flag indicating that node enable graphQL service",
 		)
 		cmd.Flags().String(
 			graphqlAddress,

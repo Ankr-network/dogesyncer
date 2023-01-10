@@ -52,8 +52,8 @@ const (
 	JsonrpcAddress               = "http.addr"
 	JsonrpcPort                  = "http.port"
 	enableWSFlag                 = "ws"
-	websocketAddress             = "websocket.addr"
-	websocketPort                = "websocket.port"
+	websocketAddress             = "ws.addr"
+	websocketPort                = "ws.port"
 	graphqlAddress               = "graphql.addr"
 	graphqlPort                  = "graphql.port"
 )
