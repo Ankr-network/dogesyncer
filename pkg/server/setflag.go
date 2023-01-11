@@ -113,7 +113,7 @@ func SetFlags(cmd *cobra.Command) {
 			&params.rawConfig.PriceLimit,
 			priceLimitFlag,
 			defaultConfig.PriceLimit,
-			"price Limit(gwei)",
+			"price Limit",
 		)
 	}
 
