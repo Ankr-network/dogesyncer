@@ -218,6 +218,10 @@ func (p *serverParams) setRawGraphQLPort(port string) {
 	p.rawConfig.GraphQLPort = port
 }
 
+func (p *serverParams) setRawPriceLimit(priceLimit uint64) {
+	p.rawConfig.PriceLimit = priceLimit
+}
+
 func (p *serverParams) generateConfig() *ServerConfig {
 	chainCfg := p.genesisConfig
 
@@ -240,6 +244,7 @@ func (p *serverParams) generateConfig() *ServerConfig {
 		EnableGraphQL:   p.rawConfig.EnableGraphQL,
 		GraphQLAddr:     p.rawConfig.GraphQLAddr,
 		GraphQLPort:     p.rawConfig.GraphQLPort,
+		PriceLimit:      p.rawConfig.PriceLimit,
 		Network: &network.Config{
 			NoDiscover:       p.rawConfig.Network.NoDiscover,
 			Addr:             p.libp2pAddress,

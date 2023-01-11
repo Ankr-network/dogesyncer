@@ -107,6 +107,16 @@ func SetFlags(cmd *cobra.Command) {
 		)
 	}
 
+	// transaction flags
+	{
+		cmd.Flags().Uint64Var(
+			&params.rawConfig.PriceLimit,
+			priceLimitFlag,
+			defaultConfig.PriceLimit,
+			"price Limit",
+		)
+	}
+
 	// log flags
 	{
 		cmd.Flags().StringVar(
