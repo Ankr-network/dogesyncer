@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/ankr/dogesyncer/graphql"
 	"net"
+
+	"github.com/ankr/dogesyncer/graphql"
 
 	"github.com/ankr/dogesyncer/helper/progress"
 	"github.com/ankr/dogesyncer/protocol"
@@ -38,7 +39,7 @@ func Run(cmd *cobra.Command, args []string) {
 	}
 
 	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub,
-		m.network, serverConfig.PriceLimit, serverConfig.WebsocketAddr, serverConfig.WebsocketPort)
+		m.network, serverConfig.PriceLimit, serverConfig.WebsocketAddr, serverConfig.WebsocketPort, m.config.PriceLimit)
 	rpcServer.Start(ctx)
 	if serverConfig.EnableWebsocket {
 		err = rpcServer.WebsocketStart(ctx)
