@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"context"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
 
 	"fmt"
 
@@ -32,15 +34,21 @@ type RpcServer struct {
 	filterManager *FilterManager
 	endpoints     endpoints
 	executor      *state.Executor
-	priceLimit    uint64
+	p2p           *network.Server
+	topic         *network.Topic
+	signer        *crypto.EIP155Signer
+	gasLimit      uint64
+	websocketAddr string
+	websocketPort string
 }
 
-func NewRpcServer(logger hclog.Logger,
-	blockchain *blockchain.Blockchain,
-	executor *state.Executor,
-	addr, port string,
-	store JSONRPCStore,
-	priceLimit uint64) *RpcServer {
+func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, executor *state.Executor, addr, port string,
+	store JSONRPCStore, pspServer *network.Server, gasLimit uint64, wsAddr, wsPort string) *RpcServer {
+	topic, err := pspServer.NewTopic(topicNameV1, &proto.Txn{})
+	if err != nil {
+		panic(err)
+	}
+
 	s := &RpcServer{
 		logger:        logger.Named("rpc"),
 		addr:          addr,
@@ -48,8 +56,15 @@ func NewRpcServer(logger hclog.Logger,
 		blockchain:    blockchain,
 		executor:      executor,
 		filterManager: NewFilterManager(logger, blockchain, logBlockRange),
-		priceLimit:    priceLimit,
+		signer:        crypto.NewEIP155Signer(uint64(blockchain.Config().Params.ChainID)),
+		p2p:           pspServer,
+		gasLimit:      gasLimit,
+		topic:         topic,
+		websocketAddr: wsAddr,
+		websocketPort: wsPort,
 	}
+	go s.filterManager.Run()
+
 	s.initEndpoints(store)
 	s.initmethods()
 	return s
@@ -131,6 +146,7 @@ func (s *RpcServer) initmethods() {
 
 		"net_version":   s.NetVersion,
 		"net_listening": s.NetListening,
+		"net_peerCount": s.NetPeerCount,
 
 		"eth_getFilterLogs":       s.GetFilterLogs,
 		"eth_getLogs":             s.GetLogs,
@@ -141,6 +157,8 @@ func (s *RpcServer) initmethods() {
 		"eth_getStorageAt":        s.GetStorageAt,
 		"eth_call":                s.Call,
 		"eth_getTransactionCount": s.GetTransactionCount,
+		"eth_estimateGas":         s.EstimateGas,
+		"eth_sendRawTransaction":  s.SendRawTransaction,
 
 		"eth_syncing":                             s.EthSyncing,
 		"eth_gasPrice":                            s.EthGasPrice,
@@ -158,8 +176,7 @@ func (s *RpcServer) initEndpoints(store JSONRPCStore) {
 	s.endpoints.Net = &Net{store: store, chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Web3 = &Web3{chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Eth = &Eth{
-		store:      store,
-		priceLimit: s.priceLimit,
+		store: store,
 	}
 }
 

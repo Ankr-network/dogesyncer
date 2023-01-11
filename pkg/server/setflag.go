@@ -19,7 +19,7 @@ func SetFlags(cmd *cobra.Command) {
 		)
 	}
 
-	// rpc & ws
+	// rpc & ws & graphQL
 
 	{
 		cmd.Flags().String(
@@ -32,6 +32,37 @@ func SetFlags(cmd *cobra.Command) {
 			"8545",
 			"rpc port",
 		)
+		cmd.Flags().Bool(
+			enableWSFlag,
+			false,
+			"the flag indicating that node enable websocket service",
+		)
+		cmd.Flags().String(
+			websocketAddress,
+			"127.0.0.1",
+			"websocket address",
+		)
+		cmd.Flags().String(
+			websocketPort,
+			"8546",
+			"websocket port",
+		)
+		cmd.Flags().Bool(
+			enableGraphQLFlag,
+			false,
+			"the flag indicating that node enable graphQL service",
+		)
+		cmd.Flags().String(
+			graphqlAddress,
+			"127.0.0.1",
+			"graphQL address",
+		)
+		cmd.Flags().String(
+			graphqlPort,
+			"8547",
+			"graphQL port",
+		)
+
 	}
 
 	// basic flags

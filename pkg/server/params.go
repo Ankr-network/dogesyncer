@@ -45,13 +45,17 @@ const (
 	corsOriginFlag               = "access-control-allow-origins"
 	daemonFlag                   = "daemon"
 	logFileLocationFlag          = "log-to"
-	enableGraphQLFlag            = "enable-graphql"
+	enableGraphQLFlag            = "graphql"
 	jsonRPCBatchRequestLimitFlag = "json-rpc-batch-request-limit"
 	jsonRPCBlockRangeLimitFlag   = "json-rpc-block-range-limit"
 	jsonrpcNamespaceFlag         = "json-rpc-namespace"
 	JsonrpcAddress               = "http.addr"
 	JsonrpcPort                  = "http.port"
-	enableWSFlag                 = "enable-ws"
+	enableWSFlag                 = "ws"
+	websocketAddress             = "ws.addr"
+	websocketPort                = "ws.port"
+	graphqlAddress               = "graphql.addr"
+	graphqlPort                  = "graphql.port"
 )
 
 const (
@@ -190,6 +194,30 @@ func (p *serverParams) setRawRpcPort(rpcPort string) {
 	p.rawConfig.HttpPort = rpcPort
 }
 
+func (p *serverParams) setRawWebsocket(enable bool) {
+	p.rawConfig.EnableWebsocket = enable
+}
+
+func (p *serverParams) setRawWebsocketAddress(address string) {
+	p.rawConfig.WebsocketAddr = address
+}
+
+func (p *serverParams) setRawWebsocketPort(port string) {
+	p.rawConfig.WebsocketPort = port
+}
+
+func (p *serverParams) setRawGraphQL(enable bool) {
+	p.rawConfig.EnableGraphQL = enable
+}
+
+func (p *serverParams) setRawGraphQLAddress(address string) {
+	p.rawConfig.GraphQLAddr = address
+}
+
+func (p *serverParams) setRawGraphQLPort(port string) {
+	p.rawConfig.GraphQLPort = port
+}
+
 func (p *serverParams) generateConfig() *ServerConfig {
 	chainCfg := p.genesisConfig
 
@@ -201,11 +229,17 @@ func (p *serverParams) generateConfig() *ServerConfig {
 	// namespace
 
 	return &ServerConfig{
-		Chain:      chainCfg,
-		GRPCAddr:   p.grpcAddress,
-		LibP2PAddr: p.libp2pAddress,
-		RpcAddr:    p.rawConfig.HttpAddr,
-		RpcPort:    p.rawConfig.HttpPort,
+		Chain:           chainCfg,
+		GRPCAddr:        p.grpcAddress,
+		LibP2PAddr:      p.libp2pAddress,
+		RpcAddr:         p.rawConfig.HttpAddr,
+		RpcPort:         p.rawConfig.HttpPort,
+		EnableWebsocket: p.rawConfig.EnableWebsocket,
+		WebsocketAddr:   p.rawConfig.WebsocketAddr,
+		WebsocketPort:   p.rawConfig.WebsocketPort,
+		EnableGraphQL:   p.rawConfig.EnableGraphQL,
+		GraphQLAddr:     p.rawConfig.GraphQLAddr,
+		GraphQLPort:     p.rawConfig.GraphQLPort,
 		Network: &network.Config{
 			NoDiscover:       p.rawConfig.Network.NoDiscover,
 			Addr:             p.libp2pAddress,

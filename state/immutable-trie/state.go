@@ -11,8 +11,6 @@ import (
 	"github.com/ankr/dogesyncer/types"
 )
 
-var ErrStateNotFound = errors.New("given root and slot not found in storage")
-
 const (
 	codeLruCacheSize         = 8192
 	trieStateLruCacheSize    = 2048
@@ -79,7 +77,7 @@ func (s *State) GetState(root types.Hash, slot []byte) ([]byte, error) {
 	result, ok := snap.Get(key)
 
 	if !ok {
-		return nil, ErrStateNotFound
+		return nil, state.ErrStateNotFound
 	}
 
 	return result, nil

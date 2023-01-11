@@ -24,6 +24,12 @@ type Config struct {
 	BlockTime         uint64   `json:"block_time_s"`
 	Headers           *Headers `json:"headers"`
 	LogFilePath       string   `json:"log_to"`
+	WebsocketAddr     string
+	WebsocketPort     string
+	EnableWebsocket   bool
+	EnableGraphQL     bool
+	GraphQLAddr       string
+	GraphQLPort       string
 }
 
 func DefaultConfig() *Config {
@@ -33,20 +39,27 @@ func DefaultConfig() *Config {
 		DataDir:        "dogechain",
 		DbType:         "mdbx",
 		BlockGasTarget: "0x00",
-		LogLevel:       "INFO",
+		GRPCAddr:       "",
 		HttpAddr:       "127.0.0.1",
 		HttpPort:       "8545",
-		BlockTime:      2,
 		Network: &Network{
 			NoDiscover:       defaultNetworkConfig.NoDiscover,
 			MaxPeers:         defaultNetworkConfig.MaxInboundPeers,
 			MaxOutboundPeers: defaultNetworkConfig.MaxOutboundPeers,
 			MaxInboundPeers:  defaultNetworkConfig.MaxInboundPeers,
 		},
+		LogLevel:  "INFO",
+		BlockTime: 2,
 		Headers: &Headers{
 			AccessControlAllowOrigins: []string{"*"},
 		},
-		LogFilePath: "",
+		LogFilePath:     "",
+		WebsocketAddr:   "127.0.0.1",
+		WebsocketPort:   "8546",
+		EnableWebsocket: false,
+		EnableGraphQL:   false,
+		GraphQLAddr:     "127.0.0.1",
+		GraphQLPort:     "8547",
 	}
 }
 
@@ -69,11 +82,16 @@ type Headers struct {
 type ServerConfig struct {
 	Chain *chain.Chain
 
-	EnableGraphQL bool
-	GRPCAddr      *net.TCPAddr
-	LibP2PAddr    *net.TCPAddr
-	RpcAddr       string
-	RpcPort       string
+	GRPCAddr        *net.TCPAddr
+	LibP2PAddr      *net.TCPAddr
+	RpcAddr         string
+	RpcPort         string
+	EnableWebsocket bool
+	WebsocketAddr   string
+	WebsocketPort   string
+	EnableGraphQL   bool
+	GraphQLAddr     string
+	GraphQLPort     string
 
 	PriceLimit            uint64
 	MaxSlots              uint64

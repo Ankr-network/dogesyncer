@@ -1,12 +1,7 @@
 package rpc
 
 import (
-	"errors"
 	"fmt"
-)
-
-var (
-	ErrStateNotFound = errors.New("given root and slot not found in storage")
 )
 
 type Error interface {

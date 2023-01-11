@@ -1,12 +1,14 @@
 package rpc
 
 import (
+	"bytes"
 	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/types"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-hclog"
 	"strings"
@@ -67,19 +69,16 @@ type filterBase struct {
 	// timestamp to be expired
 	expiresAt time.Time
 
-	// websocket connection
-	// todo ws wsConn
+	ws wsConn
 }
 
 // newFilterBase initializes filterBase with unique ID
-func newFilterBase( /*ws wsConn*/ ) filterBase {
-	// todo
-	/*return filterBase{
+func newFilterBase(ws wsConn) filterBase {
+	return filterBase{
 		id:        uuid.New().String(),
 		ws:        ws,
 		heapIndex: NoIndexInHeap,
-	}*/
-	return filterBase{}
+	}
 }
 
 // getFilterBase returns its own reference so that child struct can return base
@@ -89,8 +88,7 @@ func (f *filterBase) getFilterBase() *filterBase {
 
 // hasWSConn returns the flag indicating this filter has websocket connection
 func (f *filterBase) hasWSConn() bool {
-	// todo return f.ws != nil
-	return false
+	return f.ws != nil
 }
 
 const ethSubscriptionTemplate = `{
@@ -104,8 +102,7 @@ const ethSubscriptionTemplate = `{
 
 // writeMessageToWs sends given message to websocket stream
 func (f *filterBase) writeMessageToWs(msg string) error {
-	//todo
-	/*if !f.hasWSConn() {
+	if !f.hasWSConn() {
 		return ErrNoWSConnection
 	}
 
@@ -117,8 +114,7 @@ func (f *filterBase) writeMessageToWs(msg string) error {
 	return f.ws.WriteMessage(
 		websocket.TextMessage,
 		v.Bytes(),
-	)*/
-	return nil
+	)
 }
 
 // blockFilter is a filter to store the updates of block
@@ -156,7 +152,7 @@ func (f *blockFilter) getUpdates() (string, error) {
 // sendUpdates writes the updates of blocks to web socket stream
 func (f *blockFilter) sendUpdates() error {
 	// todo
-	/*updates := f.takeBlockUpdates()
+	updates := f.takeBlockUpdates()
 
 	// it is block header actually
 	for _, header := range updates {
@@ -168,7 +164,7 @@ func (f *blockFilter) sendUpdates() error {
 		if err := f.writeMessageToWs(string(raw)); err != nil {
 			return err
 		}
-	}*/
+	}
 
 	return nil
 }
@@ -352,8 +348,8 @@ func (f *FilterManager) Close() {
 }
 
 // NewBlockFilter adds new BlockFilter
-func (f *FilterManager) NewBlockFilter( /*ws wsConn*/ ) string {
-	/*filter := &blockFilter{
+func (f *FilterManager) NewBlockFilter(ws wsConn) string {
+	filter := &blockFilter{
 		filterBase: newFilterBase(ws),
 		block:      f.blockStream.Head(),
 	}
@@ -362,15 +358,14 @@ func (f *FilterManager) NewBlockFilter( /*ws wsConn*/ ) string {
 		ws.SetFilterID(filter.id)
 	}
 
-	return f.addFilter(filter)*/
-	return ""
+	return f.addFilter(filter)
 }
 
 // NewLogFilter adds new LogFilter
 func (f *FilterManager) NewLogFilter(logQuery *LogQuery, ws wsConn) string {
 	filter := &logFilter{
-		//filterBase: newFilterBase(ws),
-		query: logQuery,
+		filterBase: newFilterBase(ws),
+		query:      logQuery,
 	}
 
 	return f.addFilter(filter)
@@ -608,11 +603,11 @@ func (f *FilterManager) removeFilterByID(id string) bool {
 }
 
 // RemoveFilterByWs removes the filter with given WS [Thread safe]
-func (f *FilterManager) RemoveFilterByWs( /*ws wsConn*/ ) {
-	/*f.Lock()
+func (f *FilterManager) RemoveFilterByWs(ws wsConn) {
+	f.Lock()
 	defer f.Unlock()
 
-	f.removeFilterByID(ws.GetFilterID())*/
+	f.removeFilterByID(ws.GetFilterID())
 }
 
 // addFilter is an internal method to add given filter to list and heap
@@ -682,7 +677,7 @@ func (f *FilterManager) processEvent(evnt *blockchain.Event) {
 
 		// process new chain to include new logs for LogFilter
 		if processErr := f.appendLogsToFilters(header); processErr != nil {
-			f.logger.Error(fmt.Sprintf("Unable to process block, %v", processErr))
+			f.logger.Info(fmt.Sprintf("unable to process block, %v", processErr))
 		}
 	}
 }
