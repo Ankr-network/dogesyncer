@@ -32,12 +32,15 @@ type RpcServer struct {
 	filterManager *FilterManager
 	endpoints     endpoints
 	executor      *state.Executor
+	priceLimit    uint64
 }
 
 func NewRpcServer(logger hclog.Logger,
 	blockchain *blockchain.Blockchain,
 	executor *state.Executor,
-	addr, port string, store JSONRPCStore) *RpcServer {
+	addr, port string,
+	store JSONRPCStore,
+	priceLimit uint64) *RpcServer {
 	s := &RpcServer{
 		logger:        logger.Named("rpc"),
 		addr:          addr,
@@ -45,6 +48,7 @@ func NewRpcServer(logger hclog.Logger,
 		blockchain:    blockchain,
 		executor:      executor,
 		filterManager: NewFilterManager(logger, blockchain, logBlockRange),
+		priceLimit:    priceLimit,
 	}
 	s.initEndpoints(store)
 	s.initmethods()
@@ -154,7 +158,8 @@ func (s *RpcServer) initEndpoints(store JSONRPCStore) {
 	s.endpoints.Net = &Net{store: store, chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Web3 = &Web3{chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Eth = &Eth{
-		store: store,
+		store:      store,
+		priceLimit: s.priceLimit,
 	}
 }
 

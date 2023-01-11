@@ -2,8 +2,9 @@ package server
 
 import (
 	"context"
-	"github.com/ankr/dogesyncer/graphql"
 	"net"
+
+	"github.com/ankr/dogesyncer/graphql"
 
 	"github.com/ankr/dogesyncer/helper/progress"
 	"github.com/ankr/dogesyncer/protocol"
@@ -36,7 +37,7 @@ func Run(cmd *cobra.Command, args []string) {
 		Executor:           m.executor,
 	}
 
-	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub)
+	rpcServer := rpc.NewRpcServer(m.logger, m.blockchain, m.executor, serverConfig.RpcAddr, serverConfig.RpcPort, hub, m.config.PriceLimit)
 	rpcServer.Start(ctx)
 
 	address, _ := net.ResolveTCPAddr("tcp", "0.0.0.0:9001")
