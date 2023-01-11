@@ -172,11 +172,11 @@ func (s *RpcServer) EthGetBlockByNumber(method string, params ...any) (any, Erro
 	if len(paramsIn) != 2 {
 		return nil, NewInvalidParamsError(fmt.Sprintf("missing value for required argument %d", len(paramsIn)))
 	}
-	blockHeight, strconvErr := strconv.ParseUint(strings.TrimPrefix(paramsIn[0].(string), "0x"), 16, 64)
-	if strconvErr != nil {
-		return nil, NewInvalidRequestError(strconvErr.Error())
+	blockNum, numErr := GetNumericBlockNumber(paramsIn[0].(string), s.blockchain)
+	if numErr != nil {
+		return nil, NewInvalidParamsError(numErr.Error())
 	}
-	res, ok := s.blockchain.GetBlockByNumber(blockHeight, paramsIn[1].(bool))
+	res, ok := s.blockchain.GetBlockByNumber(blockNum, paramsIn[1].(bool))
 	if !ok {
 		return nil, nil
 	}
