@@ -113,7 +113,7 @@ func SetFlags(cmd *cobra.Command) {
 			&params.rawConfig.PriceLimit,
 			priceLimitFlag,
 			defaultConfig.PriceLimit,
-			"price Limit",
+			"price Limit, min value is 50000000000",
 		)
 	}
 
