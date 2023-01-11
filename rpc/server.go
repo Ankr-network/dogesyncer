@@ -5,6 +5,9 @@ import (
 	"github.com/ankr/dogesyncer/network"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
 
+	"github.com/ankr/dogesyncer/network"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
+
 	"fmt"
 
 	"github.com/ankr/dogesyncer/crypto"
@@ -43,7 +46,7 @@ type RpcServer struct {
 }
 
 func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, executor *state.Executor, addr, port string,
-	store JSONRPCStore, pspServer *network.Server, gasLimit uint64, wsAddr, wsPort string) *RpcServer {
+	store JSONRPCStore, pspServer *network.Server, gasLimit uint64, wsAddr, wsPort string, priceLimit uint64) *RpcServer {
 	topic, err := pspServer.NewTopic(topicNameV1, &proto.Txn{})
 	if err != nil {
 		panic(err)
@@ -65,7 +68,7 @@ func NewRpcServer(logger hclog.Logger, blockchain *blockchain.Blockchain, execut
 	}
 	go s.filterManager.Run()
 
-	s.initEndpoints(store)
+	s.initEndpoints(store, priceLimit)
 	s.initmethods()
 	return s
 }
@@ -172,11 +175,12 @@ func (s *RpcServer) initmethods() {
 	}
 }
 
-func (s *RpcServer) initEndpoints(store JSONRPCStore) {
+func (s *RpcServer) initEndpoints(store JSONRPCStore, priceLimit uint64) {
 	s.endpoints.Net = &Net{store: store, chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Web3 = &Web3{chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Eth = &Eth{
-		store: store,
+		store:      store,
+		priceLimit: priceLimit,
 	}
 }
 
