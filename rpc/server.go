@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"context"
+	"github.com/ankr/dogesyncer/network"
+	"github.com/dogechain-lab/dogechain/txpool/proto"
 
 	"github.com/ankr/dogesyncer/network"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
