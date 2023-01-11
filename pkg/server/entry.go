@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/ankr/dogesyncer/graphql"
 
@@ -85,6 +86,7 @@ func PreRun(cmd *cobra.Command, _ []string) error {
 	params.setRawWebsocket(GetEnableWebsocket(cmd))
 	params.setRawWebsocketAddress(GetWebsocketAddress(cmd))
 	params.setRawWebsocketPort(GetWebsocketPort(cmd))
+	params.setRawPriceLimit(GetPriceLimitFlag(cmd))
 
 	// Check if the config file has been specified
 	// Config file settings will override JSON-RPC and GRPC address values
@@ -173,4 +175,9 @@ func GetGraphQLAddress(cmd *cobra.Command) string {
 
 func GetGraphQLPort(cmd *cobra.Command) string {
 	return cmd.Flag(graphqlPort).Value.String()
+}
+
+func GetPriceLimitFlag(cmd *cobra.Command) uint64 {
+	resNum, _ := strconv.Atoi(cmd.Flag(priceLimitFlag).Value.String())
+	return uint64(resNum)
 }

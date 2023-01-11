@@ -30,6 +30,7 @@ type Config struct {
 	EnableGraphQL     bool
 	GraphQLAddr       string
 	GraphQLPort       string
+	PriceLimit        uint64
 }
 
 func DefaultConfig() *Config {
@@ -60,6 +61,7 @@ func DefaultConfig() *Config {
 		EnableGraphQL:   false,
 		GraphQLAddr:     "127.0.0.1",
 		GraphQLPort:     "8547",
+		PriceLimit:      50000000000,
 	}
 }
 
