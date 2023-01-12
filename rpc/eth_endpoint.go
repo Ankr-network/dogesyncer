@@ -20,6 +20,8 @@ const (
 	defaultMinGasPrice = "0Xba43b7400" // 50 GWei
 )
 
+var minGasPrice, _ = new(big.Int).SetString(defaultMinGasPrice, 0)
+
 type ethBlockchainStore interface {
 	// Header returns the current header of the chain (genesis if empty)
 	Header() *types.Header
@@ -67,7 +69,7 @@ type Eth struct {
 	store ethStore
 	// chainID uint64
 	// filterManager *FilterManager
-	priceLimit uint64
+	priceLimit *big.Int
 }
 
 func (e *Eth) Syncing() (interface{}, error) {
@@ -90,41 +92,22 @@ func (e *Eth) Syncing() (interface{}, error) {
 func (e *Eth) GasPrice() (interface{}, error) {
 	// var avgGasPrice string
 	// Grab the average gas price and convert it to a hex value
-	priceLimit := new(big.Int).SetUint64(e.priceLimit)
-	minGasPrice, _ := new(big.Int).SetString(defaultMinGasPrice, 0)
-
-	if priceLimit.Cmp(minGasPrice) == -1 {
-		priceLimit = minGasPrice
-	}
-
-	// if e.store.GetAvgGasPrice().Cmp(minGasPrice) == -1 {
-	// 	avgGasPrice = hex.EncodeBig(minGasPrice)
-	// } else {
-	// 	avgGasPrice = hex.EncodeBig(e.store.GetAvgGasPrice())
-	// }
-
-	// return avgGasPrice, nil
-
-	return hex.EncodeBig(priceLimit), nil
+	return hex.EncodeBig(e.priceLimit), nil
 }
 
 func GetNumericBlockNumber(numberParam string, blockchain *blockchain.Blockchain) (uint64, error) {
 	switch numberParam {
 	case "latest":
-		return uint64(blockchain.Header().Number), nil
+		return blockchain.Header().Number, nil
 
 	case "earliest":
-		return 0, nil
+		return 1, nil
 
 	case "pending":
 		return 0, fmt.Errorf("fetching the pending header is not supported")
 
 	default:
-		blockHeight, err := strconv.ParseUint(numberParam, 0, 64)
-		if err != nil {
-			return 0, err
-		}
-		return blockHeight, nil
+		return strconv.ParseUint(numberParam, 0, 64)
 	}
 }
 
@@ -145,8 +128,7 @@ func (s *RpcServer) EthGasPrice(method string, params ...any) (any, Error) {
 }
 
 func (s *RpcServer) GetBlockNumber(method string, params ...any) (any, Error) {
-	num := strconv.FormatInt(int64(s.blockchain.Header().Number), 16)
-	return strings.Join([]string{"0x", num}, ""), nil
+	return fmt.Sprintf("0x%0x", s.blockchain.Header().Number), nil
 }
 
 func (s *RpcServer) EthGetBlockByHash(method string, params ...any) (any, Error) {

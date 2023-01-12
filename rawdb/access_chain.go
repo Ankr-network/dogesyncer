@@ -27,7 +27,6 @@ func WriteTD(db ethdb.Database, hash types.Hash, number uint64) error {
 }
 
 func ReadHeadNumber(db ethdb.Database) (uint64, bool) {
-
 	v, ok, err := db.Get(ethdb.AssistDBI, latestBlockNumber)
 	if err != nil {
 		return 0, false
@@ -218,7 +217,7 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 	return nil
 }
 
-func WrteReceipt(db ethdb.Database, receipt *types.Receipt) error {
+func WriteReceipt(db ethdb.Database, receipt *types.Receipt) error {
 	return db.Set(ethdb.ReceiptsDBI, receipt.TxHash.Bytes(), receipt.MarshalStoreRLPTo(nil))
 }
 

@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/ankr/dogesyncer/network"
 	"github.com/dogechain-lab/dogechain/txpool/proto"
@@ -176,9 +177,15 @@ func (s *RpcServer) initmethods() {
 func (s *RpcServer) initEndpoints(store JSONRPCStore, priceLimit uint64) {
 	s.endpoints.Net = &Net{store: store, chainID: uint64(s.blockchain.Config().Params.ChainID)}
 	s.endpoints.Web3 = &Web3{chainID: uint64(s.blockchain.Config().Params.ChainID)}
+
+	priceLimitInt := new(big.Int).SetUint64(priceLimit)
+	if priceLimitInt.Cmp(minGasPrice) == -1 {
+		priceLimitInt = minGasPrice
+	}
+
 	s.endpoints.Eth = &Eth{
 		store:      store,
-		priceLimit: priceLimit,
+		priceLimit: priceLimitInt,
 	}
 }
 

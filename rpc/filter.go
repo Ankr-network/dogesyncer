@@ -654,9 +654,9 @@ func (f *FilterManager) nextTimeoutFilter() *filterBase {
 }
 
 // dispatchEvent is an event handler for new block event
-func (f *FilterManager) dispatchEvent(evnt *blockchain.Event) error {
+func (f *FilterManager) dispatchEvent(event *blockchain.Event) error {
 	// store new event in each filters
-	f.processEvent(evnt)
+	f.processEvent(event)
 
 	// send data to web socket stream
 	if err := f.flushWsFilters(); err != nil {
@@ -740,26 +740,32 @@ func (f *FilterManager) flushWsFilters() error {
 	closedFilterIDs := make([]string, 0)
 
 	f.RLock()
+	wg := new(sync.WaitGroup)
 
-	for id, filter := range f.filters {
-		if !filter.hasWSConn() {
+	for id, ff := range f.filters {
+		if !ff.hasWSConn() {
 			continue
 		}
+		wg.Add(1)
+		go func(i string, f1 filter) {
+			defer wg.Done()
+			if flushErr := f1.sendUpdates(); flushErr != nil {
+				// mark as closed if the connection is closed
+				if errors.Is(flushErr, websocket.ErrCloseSent) {
+					closedFilterIDs = append(closedFilterIDs, i)
 
-		if flushErr := filter.sendUpdates(); flushErr != nil {
-			// mark as closed if the connection is closed
-			if errors.Is(flushErr, websocket.ErrCloseSent) {
-				closedFilterIDs = append(closedFilterIDs, id)
+					f.logger.Warn(fmt.Sprintf("Subscription %s has been closed", i))
 
-				f.logger.Warn(fmt.Sprintf("Subscription %s has been closed", id))
+					return
+				}
 
-				continue
+				f.logger.Error(fmt.Sprintf("Unable to process flush, %v", flushErr))
 			}
+		}(id, ff)
 
-			f.logger.Error(fmt.Sprintf("Unable to process flush, %v", flushErr))
-		}
 	}
 
+	wg.Wait()
 	f.RUnlock()
 
 	// remove filters with closed web socket connections from FilterManager
