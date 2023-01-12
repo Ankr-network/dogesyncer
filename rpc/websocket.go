@@ -29,7 +29,7 @@ func (s *RpcServer) WebsocketStart(ctx context.Context) error {
 			return fiber.ErrUpgradeRequired
 		})
 
-		svc.Get("/wss/*", websocket.New(s.handle))
+		svc.Get("/ws/*", websocket.New(s.handle))
 
 		addr := fmt.Sprintf("%s:%s", s.websocketAddr, s.websocketPort)
 		s.logger.Info("websocket", "addr", addr)
