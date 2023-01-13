@@ -151,7 +151,6 @@ func (f *blockFilter) getUpdates() (string, error) {
 
 // sendUpdates writes the updates of blocks to web socket stream
 func (f *blockFilter) sendUpdates() error {
-	// todo
 	updates := f.takeBlockUpdates()
 
 	// it is block header actually
