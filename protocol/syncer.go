@@ -349,8 +349,7 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 				currentSyncHeight        = ancestor.Number + 1
 			)
 
-			// sync finished
-			if currentSyncHeight >= target {
+			if currentSyncHeight > target {
 				continue
 			}
 
