@@ -347,7 +347,6 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 			var (
 				target            uint64 = p.status.Number
 				currentSyncHeight        = ancestor.Number + 1
-				blockAmount              = maxSkeletonHeadersAmount
 			)
 
 			// sync finished
@@ -355,30 +354,35 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 				continue
 			}
 
-			if target-currentSyncHeight < maxSkeletonHeadersAmount {
-				blockAmount = int(target - currentSyncHeight)
+			var blockAmount int64
+			if maxSkeletonHeadersAmount > int64(target-currentSyncHeight) {
+				blockAmount = int64(target - currentSyncHeight)
+			} else {
+				blockAmount = maxSkeletonHeadersAmount
 			}
 
 			for {
 
 				sk := &skeleton{
 					server: s.server,
-					amount: int64(blockAmount),
+					amount: blockAmount,
 				}
 
 				blocks, err := sk.GetBlocks(ctx, p.ID(), currentSyncHeight)
 				if err != nil {
 					if rpcErr, ok := grpcstatus.FromError(err); ok {
 						// the data size exceeds grpc server/client message size
-						if rpcErr.Code() == grpccodes.ResourceExhausted {
+						code := rpcErr.Code()
+						if code == grpccodes.ResourceExhausted {
 							blockAmount /= 2
-
 							continue
+						} else if code == grpccodes.Unimplemented {
+							s.server.DisconnectFromPeer(p.peer, "Unimplemented GetBlocks")
+							break
 						}
 					}
 					break
 				}
-				blockAmount = maxSkeletonHeadersAmount
 
 				for _, block := range blocks {
 					err = s.blockchain.WriteBlock(block)
@@ -392,7 +396,13 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 
 				// check again
 				if currentSyncHeight >= target {
-					continue
+					break
+				} else {
+					if maxSkeletonHeadersAmount > int64(target-currentSyncHeight) {
+						blockAmount = int64(target - currentSyncHeight)
+					} else {
+						blockAmount = maxSkeletonHeadersAmount
+					}
 				}
 			}
 		}
