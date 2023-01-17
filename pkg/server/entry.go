@@ -22,7 +22,7 @@ func Run(cmd *cobra.Command, args []string) {
 	ctx, svc := grace.New(context.Background())
 
 	serverConfig := params.generateConfig()
-	m, err := NewServer(ctx, serverConfig)
+	m, err := NewServer(serverConfig)
 	if err != nil {
 		panic(err)
 	}

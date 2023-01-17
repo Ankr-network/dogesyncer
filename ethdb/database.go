@@ -3,16 +3,18 @@ package ethdb
 import "fmt"
 
 var (
-	TrieDBI     = "trie"
-	BodyDBI     = "blck"
-	HeadDBI     = "head"
-	AssistDBI   = "assi"
-	NumHashDBI  = "nuha"
-	TxesDBI     = "txes"
-	TxLookUpDBI = "lkup"
-	ReceiptsDBI = "rept"
-	TODBI       = "todi" // total difficulty
-	CodeDBI     = "code" // save contract code
+	TrieDBI              = "trie"
+	BodyDBI              = "blck"
+	HeadDBI              = "head"
+	AssistDBI            = "assi"
+	NumHashDBI           = "nuha"
+	TxesDBI              = "txes"
+	TxLookUpDBI          = "lkup"
+	ReceiptsDBI          = "rept"
+	TODBI                = "todi" // total difficulty
+	CodeDBI              = "code" // save contract code
+	BloomBitsIndexPrefix = "iB"
+	BloomBitsPrefix      = "bB"
 )
 
 var (

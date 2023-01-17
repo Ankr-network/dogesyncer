@@ -1,13 +1,8 @@
 package types
 
 import (
-	"database/sql/driver"
-	"errors"
 	"fmt"
 
-	goHex "encoding/hex"
-
-	"github.com/ankr/dogesyncer/helper/hex"
 	"github.com/ankr/dogesyncer/helper/keccak"
 	"github.com/dogechain-lab/fastrlp"
 )
@@ -62,67 +57,6 @@ func (l *Log) MarshalRLPWith(a *fastrlp.Arena) *fastrlp.Value {
 	v.Set(a.NewBytes(l.Data))
 
 	return v
-}
-
-const BloomByteLength = 256
-
-type Bloom [BloomByteLength]byte
-
-func (b *Bloom) UnmarshalText(input []byte) error {
-	input = input[2:]
-	if _, err := goHex.Decode(b[:], input); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (b Bloom) String() string {
-	return hex.EncodeToHex(b[:])
-}
-
-func (b Bloom) Value() (driver.Value, error) {
-	return b.String(), nil
-}
-
-func (b *Bloom) Scan(src interface{}) error {
-	stringVal, ok := src.([]byte)
-	if !ok {
-		return errors.New("invalid type assert")
-	}
-
-	bb, err := hex.DecodeHex(string(stringVal))
-	if err != nil {
-		return fmt.Errorf("decode hex err: %w", err)
-	}
-
-	copy(b[:], bb[:])
-
-	return nil
-}
-
-// MarshalText implements encoding.TextMarshaler
-func (b Bloom) MarshalText() ([]byte, error) {
-	return []byte(b.String()), nil
-}
-
-// CreateBloom creates a new bloom filter from a set of receipts
-func CreateBloom(receipts []*Receipt) (b Bloom) {
-	h := keccak.DefaultKeccakPool.Get()
-
-	for _, receipt := range receipts {
-		for _, log := range receipt.Logs {
-			b.setEncode(h, log.Address[:])
-
-			for _, topic := range log.Topics {
-				b.setEncode(h, topic[:])
-			}
-		}
-	}
-
-	keccak.DefaultKeccakPool.Put(h)
-
-	return
 }
 
 func (b *Bloom) setEncode(hasher *keccak.Keccak, h []byte) {

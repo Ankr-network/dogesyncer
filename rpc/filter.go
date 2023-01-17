@@ -3,11 +3,13 @@ package rpc
 import (
 	"bytes"
 	"container/heap"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/types"
+	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-hclog"
@@ -226,8 +228,8 @@ func (f *logFilter) sendUpdates() error {
 	return nil
 }
 
-// filterManagerStore provides methods required by FilterManager
-type filterManagerStore interface {
+// FilterManagerStore provides methods required by FilterManager
+type FilterManagerStore interface {
 	// Header returns the current header of the chain (genesis if empty)
 	Header() *types.Header
 
@@ -242,6 +244,12 @@ type filterManagerStore interface {
 
 	// GetBlockByNumber returns a block using the provided number
 	GetBlockByNumber(num uint64, full bool) (*types.Block, bool)
+
+	GetHeaderByNumber(n uint64) (*types.Header, bool)
+	GetHeaderByHash(hash types.Hash) (*types.Header, bool)
+
+	BloomStatus() (uint64, uint64)
+	ServiceFilter(session *bloombits.MatcherSession)
 }
 
 // FilterManager manages all running filters
@@ -252,7 +260,7 @@ type FilterManager struct {
 
 	timeout time.Duration
 
-	store           filterManagerStore
+	store           FilterManagerStore
 	subscription    blockchain.Subscription
 	blockStream     *blockStream
 	blockRangeLimit uint64
@@ -264,7 +272,7 @@ type FilterManager struct {
 	closeCh  chan struct{}
 }
 
-func NewFilterManager(logger hclog.Logger, store filterManagerStore, blockRangeLimit uint64) *FilterManager {
+func NewFilterManager(logger hclog.Logger, store FilterManagerStore, blockRangeLimit uint64) *FilterManager {
 	m := &FilterManager{
 		logger:          logger.Named("filter"),
 		timeout:         defaultTimeout,
@@ -497,6 +505,61 @@ func (f *FilterManager) GetLogs(query *LogQuery) ([]*Log, error) {
 	return f.getLogsFromBlocks(query)
 }
 
+func (f *FilterManager) GetBloomLogs(query *LogQuery) ([]*Log, error) {
+	var filter *Filter
+
+	if query.BlockHash != nil {
+		//	BlockHash is set -> fetch logs from this block only
+		filter = f.NewSingleFilter(query)
+	} else {
+		//	gets logs from a range of blocks
+		filter = f.NewRangeFilter(query)
+	}
+
+	logs, err := filter.Logs(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return logs, nil
+}
+
+func (f *FilterManager) NewSingleFilter(query *LogQuery) *Filter {
+	// Create a generic filter and convert it into a block filter
+	return &Filter{
+		fm:    f,
+		query: query,
+	}
+}
+
+func (f *FilterManager) NewRangeFilter(query *LogQuery) *Filter {
+	// Flatten the address and topic filter clauses into a single bloom bits filter
+	// system. Since the bloom bits are not positional, nil topics are permitted,
+	// which get flattened into a nil byte slice.
+	var filters [][][]byte
+	if len(query.Addresses) > 0 {
+		filter := make([][]byte, len(query.Addresses))
+		for i, address := range query.Addresses {
+			filter[i] = address.Bytes()
+		}
+		filters = append(filters, filter)
+	}
+	for _, topicList := range query.Topics {
+		filter := make([][]byte, len(topicList))
+		for i, topic := range topicList {
+			filter[i] = topic.Bytes()
+		}
+		filters = append(filters, filter)
+	}
+	size, _ := f.store.BloomStatus()
+
+	// Create a generic filter and convert it into a range filter
+	return &Filter{
+		fm:      f,
+		query:   query,
+		matcher: bloombits.NewMatcher(size, filters),
+	}
+}
+
 // getFilterByID fetches the filter by the ID
 //
 // Release lock as quick as possible
@@ -700,7 +763,6 @@ func (f *FilterManager) appendLogsToFilters(header *types.Header) error {
 	block, ok := f.store.GetBlockByHash(header.Hash, true)
 	if !ok {
 		f.logger.Error("could not find block in store", "hash", header.Hash.String())
-
 		return nil
 	}
 

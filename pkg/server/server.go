@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -51,7 +50,7 @@ type Server struct {
 }
 
 // NewServer creates a new Minimal server, using the passed in configuration
-func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
+func NewServer(config *ServerConfig) (*Server, error) {
 	logger, err := newLoggerFromConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup new logger instance, %w", err)
@@ -139,6 +138,8 @@ func NewServer(ctx context.Context, config *ServerConfig) (*Server, error) {
 	if err := m.network.Start(); err != nil {
 		return nil, err
 	}
+
+	m.blockchain.BloomIndexer.Start(m.blockchain)
 
 	return m, nil
 }

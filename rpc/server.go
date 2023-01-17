@@ -152,6 +152,7 @@ func (s *RpcServer) initmethods() {
 
 		"eth_getFilterLogs":       s.GetFilterLogs,
 		"eth_getLogs":             s.GetLogs,
+		"eth_getBloomLogs":        s.GetBloomLogs,
 		"eth_uninstallFilter":     s.UninstallFilter,
 		"eth_newFilter":           s.NewFilter,
 		"eth_getBalance":          s.GetBalance,

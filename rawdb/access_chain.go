@@ -3,6 +3,7 @@ package rawdb
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 
@@ -52,15 +53,6 @@ func ReadHeadHash(db ethdb.Database) (types.Hash, bool) {
 
 func WriteHeadHash(db ethdb.Database, hash types.Hash) error {
 	return db.Set(ethdb.AssistDBI, latestBlockHash, hash.Bytes())
-}
-
-func WriteBlockByHash(db ethdb.Database, hash types.Hash, block *types.Block) error {
-
-	return nil
-}
-
-func ReadBlockByHash(db ethdb.Database, hash types.Hash) (*types.Block, bool) {
-	return nil, false
 }
 
 func ReadCanonicalHash(db ethdb.Database, number uint64) (types.Hash, bool) {
@@ -238,4 +230,35 @@ func ReadReceipt(db ethdb.Database, hash types.Hash) (*types.Receipt, error) {
 	}
 
 	return receipt, nil
+}
+
+// ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
+// section and bit index from the.
+func ReadBloomBits(db ethdb.Database, bit uint, section uint64, head types.Hash) ([]byte, error) {
+	data, _, err := db.Get(ethdb.BloomBitsPrefix, bloomBitsKey(bit, section, head))
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
+// WriteBloomBits stores the compressed bloom bits vector belonging to the given
+// section and bit index.
+func WriteBloomBits(db ethdb.Batch, bit uint, section uint64, head types.Hash, bits []byte) error {
+	if len(bits) == 0 {
+		return nil
+	}
+	fmt.Println("--------------WriteBloomBits----------", len(bits))
+	return db.Set(ethdb.BloomBitsPrefix, bloomBitsKey(bit, section, head), bits)
+}
+
+// bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
+func bloomBitsKey(bit uint, section uint64, hash types.Hash) []byte {
+	temp := make([]byte, 10)
+	key := append(temp, hash.Bytes()...)
+
+	binary.BigEndian.PutUint16(key[1:], uint16(bit))
+	binary.BigEndian.PutUint64(key[3:], section)
+
+	return key
 }

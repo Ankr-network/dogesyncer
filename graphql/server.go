@@ -35,7 +35,7 @@ type Config struct {
 type GraphQLStore interface {
 	ethStore
 	txPoolStore
-	filterManagerStore
+	rpc.FilterManagerStore
 }
 
 type handler struct {

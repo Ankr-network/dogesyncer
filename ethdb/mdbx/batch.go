@@ -1,9 +1,8 @@
 package mdbx
 
 import (
-	"runtime"
-
 	"github.com/sunvim/utils/cachem"
+	"runtime"
 )
 
 type keyvalue struct {
@@ -46,13 +45,14 @@ func (b *KVBatch) Write() error {
 	}
 	defer txn.Commit()
 
-	for _, keyvalue := range b.writes {
-		err = txn.Put(b.db.dbi[keyvalue.dbi], keyvalue.key, keyvalue.value, 0)
+	for _, keyValue := range b.writes {
+		err = txn.Put(b.db.dbi[keyValue.dbi], keyValue.key, keyValue.value, 0)
 		if err != nil {
 			panic(err)
 		}
-		cachem.Free(keyvalue.key)
-		cachem.Free(keyvalue.value)
+
+		cachem.Free(keyValue.key)
+		cachem.Free(keyValue.value)
 	}
 
 	return nil

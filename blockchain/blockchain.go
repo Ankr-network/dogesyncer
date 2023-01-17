@@ -2,6 +2,8 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/ankr/dogesyncer/helper/bitutil"
+	"github.com/ethereum/go-ethereum/core/bloombits"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -41,8 +43,11 @@ type Blockchain struct {
 	blockNumberHashCache *lru.Cache // LRU cache for the CanonicalHash
 	difficultyCache      *lru.Cache // LRU cache for the difficulty
 
-	gpAverage *gasPriceAverage // A reference to the average gas price
-	consensus Verifier
+	gpAverage         *gasPriceAverage // A reference to the average gas price
+	consensus         Verifier
+	BloomIndexer      *ChainIndexer
+	bloomRequests     chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
+	closeBloomHandler chan struct{}
 }
 
 type Verifier interface {
@@ -72,12 +77,12 @@ type Executor interface {
 	Stop()
 }
 
-func NewBlockchain(logger hclog.Logger, db ethdb.Database, chain *chain.Chain, executor Executor, state *itrie.State) (*Blockchain, error) {
+func NewBlockchain(logger hclog.Logger, db ethdb.Database, c *chain.Chain, executor Executor, state *itrie.State) (*Blockchain, error) {
 	b := &Blockchain{
 		logger:   logger.Named("blockchain"),
 		chaindb:  db,
 		state:    state,
-		config:   chain,
+		config:   c,
 		stream:   &eventStream{},
 		executor: executor,
 		wg:       &sync.WaitGroup{},
@@ -85,6 +90,9 @@ func NewBlockchain(logger hclog.Logger, db ethdb.Database, chain *chain.Chain, e
 			price: big.NewInt(0),
 			count: big.NewInt(0),
 		},
+		BloomIndexer:      NewBloomIndexer(db, bloomBitsBlocks, bloomConfirms, logger),
+		closeBloomHandler: make(chan struct{}),
+		bloomRequests:     make(chan chan *bloombits.Retrieval),
 	}
 
 	err := b.initCaches(32)
@@ -93,12 +101,19 @@ func NewBlockchain(logger hclog.Logger, db ethdb.Database, chain *chain.Chain, e
 	}
 
 	b.stream.push(&Event{})
+
 	return b, nil
 }
 
 func (b *Blockchain) Close() error {
 	b.executor.Stop()
 	b.stop()
+	if err := b.BloomIndexer.Close(); err != nil {
+		b.logger.Error("close bloom indexer error")
+	} else {
+		b.logger.Info("bloom indexer closed")
+	}
+	close(b.closeBloomHandler)
 	b.wg.Wait()
 	return b.chaindb.Close()
 }
@@ -162,7 +177,7 @@ func (b *Blockchain) GetTD(hash types.Hash) (*big.Int, bool) {
 	return b.readTotalDifficulty(hash)
 }
 
-// get receitps by block header hash
+// GetReceiptsByHash get receitps by block header hash
 func (b *Blockchain) GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error) {
 	// read body
 	bodies, err := rawdb.ReadBody(b.chaindb, hash)
@@ -273,6 +288,10 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 
 	// Write the header to the chain
 	header.ComputeHash()
+	// origin node has no logs bloom, do not include this when calculating block hash
+	if len(blockResult.Receipts) > 0 {
+		header.LogsBloom = types.CreateBloom(blockResult.Receipts)
+	}
 	if err := b.WriteHeader(header); err != nil {
 		return err
 	}
@@ -1062,4 +1081,44 @@ func (b *Blockchain) GetStorage(root types.Hash, addr types.Address, slot types.
 func (b *Blockchain) GetCode(hash types.Hash) ([]byte, error) {
 	code, _ := b.state.GetCode(hash)
 	return code, nil
+}
+
+func (b *Blockchain) BloomStatus() (uint64, uint64) {
+	sections, _, _ := b.BloomIndexer.Sections()
+	return bloomBitsBlocks, sections
+}
+
+func (b *Blockchain) ServiceFilter(session *bloombits.MatcherSession) {
+	for i := 0; i < bloomFilterThreads; i++ {
+		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, b.bloomRequests)
+	}
+}
+
+func (b *Blockchain) startBloomHandlers(sectionSize uint64) {
+	for i := 0; i < bloomServiceThreads; i++ {
+		go func() {
+			for {
+				select {
+				case <-b.closeBloomHandler:
+					return
+				case request := <-b.bloomRequests:
+					task := <-request
+					task.Bitsets = make([][]byte, len(task.Sections))
+					for i, section := range task.Sections {
+						head, _ := rawdb.ReadCanonicalHash(b.chaindb, (section+1)*sectionSize-1)
+						if compVector, err := rawdb.ReadBloomBits(b.chaindb, task.Bit, section, head); err == nil {
+							if blob, err := bitutil.DecompressBytes(compVector, int(sectionSize/8)); err == nil {
+								task.Bitsets[i] = blob
+							} else {
+								task.Error = err
+							}
+						} else {
+							task.Error = err
+						}
+					}
+					request <- task
+				}
+			}
+		}()
+	}
 }

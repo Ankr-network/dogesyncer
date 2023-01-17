@@ -3,7 +3,6 @@ package graphql
 import (
 	"math/big"
 
-	"github.com/ankr/dogesyncer/blockchain"
 	"github.com/ankr/dogesyncer/chain"
 	"github.com/ankr/dogesyncer/helper/progress"
 	"github.com/ankr/dogesyncer/state"
@@ -75,22 +74,4 @@ type txPoolStore interface {
 	//
 	//// GetCapacity returns the current and max capacity of the pool in slots
 	//GetCapacity() (uint64, uint64)
-}
-
-// filterManagerStore provides methods required by FilterManager
-type filterManagerStore interface {
-	// Header returns the current header of the chain (genesis if empty)
-	Header() *types.Header
-
-	// SubscribeEvents subscribes for chain head events
-	SubscribeEvents() blockchain.Subscription
-
-	// GetReceiptsByHash returns the receipts for a block hash
-	GetReceiptsByHash(hash types.Hash) ([]*types.Receipt, error)
-
-	// GetBlockByHash returns the block using the block hash
-	GetBlockByHash(hash types.Hash, full bool) (*types.Block, bool)
-
-	// GetBlockByNumber returns a block using the provided number
-	GetBlockByNumber(num uint64, full bool) (*types.Block, bool)
 }

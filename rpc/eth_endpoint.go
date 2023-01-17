@@ -411,6 +411,76 @@ func (s *RpcServer) GetLogs(method string, params ...any) (any, Error) {
 	return logs, nil
 }
 
+func (s *RpcServer) GetBloomLogs(method string, params ...any) (any, Error) {
+	paramsIn, err := GetPrams(params...)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+
+	if len(paramsIn) == 0 {
+		return nil, NewInvalidParamsError("not enough params")
+	}
+
+	query := new(LogQueryRequest)
+
+	d, e := json.Marshal(paramsIn[0])
+	if e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	if e := json.Unmarshal(d, query); e != nil {
+		return nil, NewInvalidParamsError(e.Error())
+	}
+
+	fromBlock, err := StringToBlockNumber(query.FromBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	toBlock, err := StringToBlockNumber(query.ToBlock)
+	if err != nil {
+		return nil, NewInvalidParamsError(err.Error())
+	}
+	addresses := make([]types.Address, 0, len(query.Addresses))
+	for _, address := range query.Addresses {
+		addresses = append(addresses, types.StringToAddress(address))
+	}
+	topics := make([][]types.Hash, 0, len(query.Topics))
+	for _, ts := range query.Topics {
+		switch ts.(type) {
+		case string:
+			topics = append(topics, []types.Hash{types.StringToHash(ts.(string))})
+
+		case []interface{}:
+			topic := make([]types.Hash, 0, len(ts.([]interface{})))
+			for _, t := range ts.([]interface{}) {
+				tps, ok := t.(string)
+				if !ok {
+					return nil, NewInvalidParamsError("invalid topic")
+				}
+				topic = append(topic, types.StringToHash(tps))
+			}
+		}
+	}
+
+	queryLog := &LogQuery{
+		FromBlock: fromBlock,
+		ToBlock:   toBlock,
+		Addresses: addresses,
+		Topics:    topics,
+	}
+
+	if query.BlockHash != "" {
+		blockHash := types.StringToHash(query.BlockHash)
+		queryLog.BlockHash = &blockHash
+	}
+
+	logs, e := s.filterManager.GetBloomLogs(queryLog)
+	if e != nil {
+		return nil, &internalError{err: e.Error()}
+	}
+	return logs, nil
+}
+
 func (s *RpcServer) GetFilterLogs(method string, params ...any) (any, Error) {
 	paramsIn, err := GetPrams(params...)
 	if err != nil {

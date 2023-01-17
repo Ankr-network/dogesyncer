@@ -50,6 +50,8 @@ var (
 		ethdb.ReceiptsDBI,
 		ethdb.CodeDBI,
 		ethdb.TxLookUpDBI,
+		ethdb.BloomBitsIndexPrefix,
+		ethdb.BloomBitsPrefix,
 	}
 )
 
