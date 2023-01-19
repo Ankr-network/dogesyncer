@@ -176,7 +176,7 @@ func CalculateHeaderHash(h *Header) ([]byte, error) {
 	vv.Set(arena.NewBytes(h.StateRoot.Bytes()))
 	vv.Set(arena.NewBytes(h.TxRoot.Bytes()))
 	vv.Set(arena.NewBytes(h.ReceiptsRoot.Bytes()))
-	vv.Set(arena.NewBytes(h.LogsBloom[:]))
+	vv.Set(arena.NewBytes(zeroBloom[:]))
 	vv.Set(arena.NewUint(h.Difficulty))
 	vv.Set(arena.NewUint(h.Number))
 	vv.Set(arena.NewUint(h.GasLimit))

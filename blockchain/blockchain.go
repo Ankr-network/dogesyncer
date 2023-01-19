@@ -256,7 +256,7 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	header := block.Header
 
 	// Log the information
-	b.logger.Info("write block", "num", block.Number(), "parent", block.ParentHash())
+	// b.logger.Info("write block", "num", block.Number(), "parent", block.ParentHash())
 	stx := time.Now()
 
 	// write body

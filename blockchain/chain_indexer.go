@@ -336,6 +336,7 @@ func (c *ChainIndexer) updateLoop() {
 
 				// If processing succeeded and no reorgs occurred, mark the section completed
 				if err == nil && (section == 0 || oldHead == c.SectionHead(section-1)) {
+					fmt.Println("=============", section, newHead.String(), oldHead.String())
 					c.setSectionHead(section, newHead)
 					c.setValidSections(section + 1)
 					if c.storedSections == c.knownSections && updating {
@@ -395,6 +396,7 @@ func (c *ChainIndexer) processSection(section uint64, lastHead types.Hash) (type
 		if err := c.backend.Process(c.ctx, header); err != nil {
 			return types.Hash{}, err
 		}
+		fmt.Println("-=-=-=-=", header.Number, header.Hash)
 		lastHead = header.Hash
 	}
 	if err := c.backend.Commit(); err != nil {
