@@ -456,12 +456,13 @@ func (c *ChainIndexer) Prune(threshold uint64) error {
 // loadValidSections reads the number of valid sections from the index database
 // and caches is into the local state.
 func (c *ChainIndexer) loadValidSections() {
-	data, _, _ := c.chainDb.Get(ethdb.BloomBitsIndexPrefix, []byte(bloomIndexerCount))
+	data, _, err := c.chainDb.Get(ethdb.BloomBitsIndexPrefix, []byte(bloomIndexerCount))
+	if err != nil {
+		c.log.Error("loadValidSections", err)
+	}
 	if len(data) == 8 {
 		c.storedSections = binary.BigEndian.Uint64(data)
 	}
-
-	fmt.Println("------DEBUG----ChainIndexer----------------", c.storedSections)
 }
 
 // setValidSections writes the number of valid sections to the index database
@@ -469,7 +470,9 @@ func (c *ChainIndexer) setValidSections(sections uint64) {
 	// Set the current number of valid sections in the database
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], sections)
-	c.chainDb.Set(ethdb.BloomBitsIndexPrefix, []byte(bloomIndexerCount), data[:])
+	if err := c.chainDb.Set(ethdb.BloomBitsIndexPrefix, []byte(bloomIndexerCount), data[:]); err != nil {
+		c.log.Error("setValidSections", sections, err)
+	}
 
 	// Remove any reorged sections, caching the valid in the meantime
 	for c.storedSections > sections {
@@ -485,7 +488,10 @@ func (c *ChainIndexer) SectionHead(section uint64) types.Hash {
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], section)
 
-	hash, _, _ := c.chainDb.Get(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...))
+	hash, _, err := c.chainDb.Get(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...))
+	if err != nil {
+		c.log.Error("SectionHead", section, err)
+	}
 	if len(hash) == len(common.Hash{}) {
 		return types.BytesToHash(hash)
 	}
@@ -498,7 +504,9 @@ func (c *ChainIndexer) setSectionHead(section uint64, hash types.Hash) {
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], section)
 
-	_ = c.chainDb.Set(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...), hash.Bytes())
+	if err := c.chainDb.Set(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...), hash.Bytes()); err != nil {
+		c.log.Error("setSectionHead", section, err)
+	}
 }
 
 // removeSectionHead removes the reference to a processed section from the index
@@ -507,5 +515,7 @@ func (c *ChainIndexer) removeSectionHead(section uint64) {
 	var data [8]byte
 	binary.BigEndian.PutUint64(data[:], section)
 
-	_ = c.chainDb.Remove(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...))
+	if err := c.chainDb.Remove(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...)); err != nil {
+		c.log.Error("removeSectionHead", section, err)
+	}
 }

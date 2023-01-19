@@ -239,6 +239,8 @@ func ReadBloomBits(db ethdb.Database, bit uint, section uint64, head types.Hash)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("--------------ReadBloomBits----------", section, head.String(), len(data))
+
 	return data, nil
 }
 
@@ -248,7 +250,7 @@ func WriteBloomBits(db ethdb.Batch, bit uint, section uint64, head types.Hash, b
 	if len(bits) == 0 {
 		return nil
 	}
-	fmt.Println("--------------WriteBloomBits----------", len(bits))
+	fmt.Println("--------------WriteBloomBits----------", section, head.String(), len(bits))
 	return db.Set(ethdb.BloomBitsPrefix, bloomBitsKey(bit, section, head), bits)
 }
 
