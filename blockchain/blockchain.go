@@ -268,9 +268,6 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	if len(blockResult.Receipts) > 0 {
-		fmt.Println("------------------------", header.Number)
-	}
 
 	if buildroot.CalculateReceiptsRoot(blockResult.Receipts) != header.ReceiptsRoot {
 		return fmt.Errorf("mismatch receipt root %s != %s", header.ReceiptsRoot, blockResult.Root)
@@ -721,7 +718,7 @@ func (b *Blockchain) ChainDB() ethdb.Database {
 func (b *Blockchain) HandleGenesis() error {
 
 	head, ok := rawdb.ReadHeadHash(b.chaindb)
-	if ok { // non empty storage
+	if ok { // non-empty storage
 		b.SelfCheck()
 		genesis, ok := rawdb.ReadCanonicalHash(b.chaindb, 0)
 		if !ok {
@@ -739,9 +736,7 @@ func (b *Blockchain) HandleGenesis() error {
 		b.logger.Info("current header", "hash", head.String(), "number", header.Number)
 
 		b.setCurHeader(header, header.Difficulty)
-
 	} else { // empty storage, write the genesis
-
 		if err := b.writeGenesis(b.config.Genesis); err != nil {
 			return err
 		}

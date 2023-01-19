@@ -197,6 +197,9 @@ func WrteReceipts(db ethdb.Database, receipts types.Receipts) error {
 	batch := db.Batch()
 
 	for _, rx := range receipts {
+		if len(rx.Logs) > 0 {
+			fmt.Println("------------Logs------------", rx.TxHash)
+		}
 		err := batch.Set(ethdb.ReceiptsDBI, rx.TxHash.Bytes(), rx.MarshalStoreRLPTo(nil))
 		if err != nil {
 			return err

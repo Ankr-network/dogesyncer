@@ -7,7 +7,6 @@ import (
 	"github.com/ankr/dogesyncer/ethdb"
 	"github.com/ankr/dogesyncer/rawdb"
 	"github.com/ankr/dogesyncer/types"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/go-hclog"
 	"sync"
 	"sync/atomic"
@@ -275,6 +274,8 @@ func (c *ChainIndexer) newHead(head uint64, reorg bool) {
 					return
 				}
 			}
+
+			fmt.Println("----update--section--------", sections, c.knownSections, c.checkpointSections, c.checkpointHead)
 			c.knownSections = sections
 
 			select {
@@ -463,6 +464,8 @@ func (c *ChainIndexer) loadValidSections() {
 	if len(data) == 8 {
 		c.storedSections = binary.BigEndian.Uint64(data)
 	}
+
+	fmt.Println("--------loadValidSections----------", c.storedSections)
 }
 
 // setValidSections writes the number of valid sections to the index database
@@ -480,6 +483,8 @@ func (c *ChainIndexer) setValidSections(sections uint64) {
 		c.removeSectionHead(c.storedSections)
 	}
 	c.storedSections = sections // needed if new > old
+
+	fmt.Println("--------setValidSections----------", c.storedSections)
 }
 
 // SectionHead retrieves the last block hash of a processed section from the
@@ -492,7 +497,8 @@ func (c *ChainIndexer) SectionHead(section uint64) types.Hash {
 	if err != nil {
 		c.log.Error("SectionHead", section, err)
 	}
-	if len(hash) == len(common.Hash{}) {
+	fmt.Println("------SectionHead------", section, types.BytesToHash(hash))
+	if len(hash) == len(types.Hash{}) {
 		return types.BytesToHash(hash)
 	}
 	return types.Hash{}
@@ -507,6 +513,7 @@ func (c *ChainIndexer) setSectionHead(section uint64, hash types.Hash) {
 	if err := c.chainDb.Set(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...), hash.Bytes()); err != nil {
 		c.log.Error("setSectionHead", section, err)
 	}
+	fmt.Println("-------setSectionHead------", section, hash.String())
 }
 
 // removeSectionHead removes the reference to a processed section from the index
@@ -518,4 +525,7 @@ func (c *ChainIndexer) removeSectionHead(section uint64) {
 	if err := c.chainDb.Remove(ethdb.BloomBitsIndexPrefix, append([]byte(bloomSectionHead), data[:]...)); err != nil {
 		c.log.Error("removeSectionHead", section, err)
 	}
+
+	fmt.Println("-------removeSectionHead------", section)
+
 }
