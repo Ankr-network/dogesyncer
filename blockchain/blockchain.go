@@ -268,6 +268,9 @@ func (b *Blockchain) WriteBlock(block *types.Block) error {
 	if err != nil {
 		return err
 	}
+	if len(blockResult.Receipts) > 0 {
+		fmt.Println("------------------------", header.Number)
+	}
 
 	if buildroot.CalculateReceiptsRoot(blockResult.Receipts) != header.ReceiptsRoot {
 		return fmt.Errorf("mismatch receipt root %s != %s", header.ReceiptsRoot, blockResult.Root)
