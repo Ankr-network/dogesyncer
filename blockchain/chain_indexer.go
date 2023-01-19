@@ -389,7 +389,7 @@ func (c *ChainIndexer) processSection(section uint64, lastHead types.Hash) (type
 		if header == nil {
 			return types.Hash{}, fmt.Errorf("block #%d [%x..] not found", number, hash[:4])
 		} else if header.ParentHash != lastHead {
-			return types.Hash{}, fmt.Errorf("chain reorged during section processing")
+			return types.Hash{}, fmt.Errorf("chain reorged during section %d  processing. want: %s have: %s", section, lastHead, header.ParentHash)
 		}
 		if err := c.backend.Process(c.ctx, header); err != nil {
 			return types.Hash{}, err
@@ -460,6 +460,8 @@ func (c *ChainIndexer) loadValidSections() {
 	if len(data) == 8 {
 		c.storedSections = binary.BigEndian.Uint64(data)
 	}
+
+	fmt.Println("------DEBUG----ChainIndexer----------------", c.storedSections)
 }
 
 // setValidSections writes the number of valid sections to the index database
