@@ -29,7 +29,7 @@ func (s *RpcServer) WebsocketStart(ctx context.Context) error {
 			return fiber.ErrUpgradeRequired
 		})
 
-		svc.Get("/wss/*", websocket.New(s.handle))
+		svc.Get("/ws/*", websocket.New(s.handle))
 
 		addr := fmt.Sprintf("%s:%s", s.websocketAddr, s.websocketPort)
 		s.logger.Info("websocket", "addr", addr)
@@ -87,36 +87,46 @@ func (s *RpcServer) handle(c *websocket.Conn) {
 	for {
 		msgType, message, err := c.ReadMessage()
 		if err != nil {
-			s.logger.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
+			if websocket.IsCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseNormalClosure,
+				websocket.CloseAbnormalClosure,
+			) {
+				// Accepted close codes
+				s.logger.Info("Closing WS connection gracefully")
+			} else {
+				s.logger.Error(fmt.Sprintf("Unable to read WS message, %s", err.Error()))
+				s.logger.Info("Closing WS connection with error")
+			}
+
 			s.filterManager.RemoveFilterByWs(wrapConn)
 			break
 		}
 		if isSupportedWSType(msgType) {
-			go func() {
-				resp, handleErr := s.handleWs(message, wrapConn)
-				if handleErr != nil {
-					s.logger.Error(fmt.Sprintf("Unable to handle WS request, %s", handleErr.Error()))
+			resp, handleErr := s.handleWs(message, wrapConn)
+			if handleErr != nil {
+				s.logger.Error(fmt.Sprintf("Unable to handle WS request, %s", handleErr.Error()))
 
-					_ = c.WriteMessage(
-						msgType,
-						[]byte(fmt.Sprintf("WS Handle error: %s", handleErr.Error())),
-					)
-				} else {
-					_ = c.WriteMessage(msgType, resp)
-				}
-			}()
+				_ = c.WriteMessage(
+					msgType,
+					[]byte(fmt.Sprintf("WS Handle error: %s", handleErr.Error())),
+				)
+			} else {
+				_ = c.WriteMessage(msgType, resp)
+			}
 		}
 	}
 }
 
 func (s *RpcServer) handleWs(reqBody []byte, conn wsConn) ([]byte, error) {
-	var req Request
+	req := reqPool.Get().(*Request)
+	defer reqPool.Put(req)
+
 	if err := json.Unmarshal(reqBody, &req); err != nil {
 		return NewRPCResponse(req.ID, "2.0", nil, NewInvalidRequestError("Invalid json request")).Bytes()
 	}
 
-	// if the request method is eth_subscribe we need to create a
-	// new filter with ws connection
+	// if the request method is eth_subscribe we need to create a new filter with ws connection
 	if req.Method == "eth_subscribe" {
 		filterID, err := s.handleSubscribe(req, conn)
 		if err != nil {
@@ -158,7 +168,7 @@ func (s *RpcServer) handleWs(reqBody []byte, conn wsConn) ([]byte, error) {
 	return NewRPCResponse(req.ID, "2.0", resp, err).Bytes()
 }
 
-func (s *RpcServer) handleReq(req Request) ([]byte, Error) {
+func (s *RpcServer) handleReq(req *Request) ([]byte, Error) {
 	rpcFunc, ok := s.routers[req.Method]
 	if !ok {
 		return nil, NewInternalError("Internal error")
@@ -174,7 +184,7 @@ func (s *RpcServer) handleReq(req Request) ([]byte, Error) {
 	return data, nil
 }
 
-func (s *RpcServer) handleSubscribe(req Request, conn wsConn) (string, Error) {
+func (s *RpcServer) handleSubscribe(req *Request, conn wsConn) (string, Error) {
 	params, err := GetPrams(req.Params)
 	if err != nil {
 		return "", NewInvalidRequestError("Invalid json request")
@@ -222,7 +232,7 @@ func formatFilterResponse(id interface{}, resp string) (string, Error) {
 	}
 }
 
-func (s *RpcServer) handleUnsubscribe(req Request) (bool, Error) {
+func (s *RpcServer) handleUnsubscribe(req *Request) (bool, Error) {
 	params, err := GetPrams(req.Params)
 	if err != nil {
 		return false, NewInvalidRequestError("Invalid json request")
