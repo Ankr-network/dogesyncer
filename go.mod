@@ -30,6 +30,7 @@ require (
 	github.com/libp2p/go-libp2p-noise v0.5.0
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
 	github.com/multiformats/go-multiaddr v0.8.0
+	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/prometheus/client_golang v1.14.0
 	github.com/smallnest/chanx v1.1.0
 	github.com/spf13/cobra v1.6.1
