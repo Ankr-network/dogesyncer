@@ -8,8 +8,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 	"github.com/hashicorp/go-hclog"
+	"github.com/panjf2000/ants/v2"
 	"math"
 	"sync"
+	"time"
 )
 
 func (s *RpcServer) WebsocketStart(ctx context.Context) error {
@@ -50,6 +52,8 @@ type wsWrapper struct {
 	ws       *websocket.Conn // the actual WS connection
 	logger   hclog.Logger    // module logger
 	filterID string          // filter ID
+
+	msgBuffers chan string
 }
 
 func (w *wsWrapper) SetFilterID(filterID string) {
@@ -64,15 +68,15 @@ func (w *wsWrapper) GetFilterID() string {
 func (w *wsWrapper) WriteMessage(messageType int, data []byte) error {
 	w.Lock()
 	defer w.Unlock()
-	writeErr := w.ws.WriteMessage(messageType, data)
-
-	if writeErr != nil {
-		w.logger.Error(
-			fmt.Sprintf("Unable to write WS message, %s", writeErr.Error()),
-		)
-	}
-
-	return writeErr
+	//writeErr := w.ws.WriteMessage(messageType, data)
+	//
+	//if writeErr != nil {
+	//	w.logger.Error(
+	//		fmt.Sprintf("Unable to write WS message, %s", writeErr.Error()),
+	//	)
+	//}
+	w.msgBuffers <- string(data)
+	return nil
 }
 
 // isSupportedWSType returns a status indicating if the message type is supported
@@ -82,7 +86,21 @@ func isSupportedWSType(messageType int) bool {
 }
 
 func (s *RpcServer) handle(c *websocket.Conn) {
-	wrapConn := &wsWrapper{ws: c, logger: s.logger}
+	wsMsgBuffers := make(chan string, 1000)
+	wrapConn := &wsWrapper{ws: c, logger: s.logger, msgBuffers: wsMsgBuffers}
+
+	SafeGo(func() {
+		for m := range wsMsgBuffers {
+			if err := c.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+				s.logger.Error("set websocket write deadline fail")
+				continue
+			}
+
+			if err := c.WriteMessage(websocket.TextMessage, []byte(m)); err != nil {
+				s.logger.Error("send websocket message fail")
+			}
+		}
+	})
 
 	for {
 		msgType, message, err := c.ReadMessage()
@@ -106,13 +124,9 @@ func (s *RpcServer) handle(c *websocket.Conn) {
 			resp, handleErr := s.handleWs(message, wrapConn)
 			if handleErr != nil {
 				s.logger.Error(fmt.Sprintf("Unable to handle WS request, %s", handleErr.Error()))
-
-				_ = c.WriteMessage(
-					msgType,
-					[]byte(fmt.Sprintf("WS Handle error: %s", handleErr.Error())),
-				)
+				wsMsgBuffers <- fmt.Sprintf("Websocket handle error: %s", handleErr.Error())
 			} else {
-				_ = c.WriteMessage(msgType, resp)
+				wsMsgBuffers <- string(resp)
 			}
 		}
 	}
@@ -248,4 +262,27 @@ func (s *RpcServer) handleUnsubscribe(req *Request) (bool, Error) {
 	}
 
 	return s.filterManager.Uninstall(filterID), nil
+}
+
+var defaultPool, _ = ants.NewPool(30000, ants.WithExpiryDuration(10*time.Second))
+
+func SafeGo(fn func()) {
+	defer func() {
+		if err := recover(); err != nil {
+			//log.Error().Interface("err", err).Msg("failed")
+		}
+	}()
+
+	for i := 0; ; i++ {
+		if i >= 3 {
+			panic("go pool is full")
+		}
+		if err := defaultPool.Submit(fn); err != nil {
+			//log.Error().Err(err).Msg("sleep 1ms...")
+			time.Sleep(time.Millisecond)
+			continue
+		} else {
+			break
+		}
+	}
 }
