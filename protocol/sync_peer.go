@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"context"
 	"math/big"
 	"sync"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Status defines the up to date information regarding the peer
@@ -74,7 +76,13 @@ type SyncPeer struct {
 func (s *SyncPeer) Number() uint64 {
 	s.statusLock.RLock()
 	defer s.statusLock.RUnlock()
+	rawStatus, err := s.client.GetCurrent(context.Background(), &emptypb.Empty{})
+	if err != nil {
+		return s.status.Number
+	}
 
+	status, err := statusFromProto(rawStatus)
+	s.status = status
 	return s.status.Number
 }
 
