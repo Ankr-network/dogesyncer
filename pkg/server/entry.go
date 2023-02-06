@@ -13,6 +13,9 @@ import (
 	"github.com/ankr/dogesyncer/rpc"
 	"github.com/spf13/cobra"
 	"github.com/sunvim/utils/grace"
+
+	"net/http"
+	_ "net/http/pprof"
 )
 
 const (
@@ -68,6 +71,10 @@ func Run(cmd *cobra.Command, args []string) {
 	// register close function
 	svc.Register(syncer.Close)
 	svc.Register(m.Close)
+
+	go func() {
+		http.ListenAndServe("0.0.0.0:8080", nil)
+	}()
 
 	m.logger.Info("server boot over...")
 	svc.Wait()
