@@ -231,9 +231,7 @@ func (s *Server) Close() error {
 
 	s.logger.Info("closing blockchain...")
 	// Close the state storage
-	if err := s.blockchain.Close(); err != nil {
-		s.logger.Error("failed to close blockchain", "err", err)
-	}
+	s.blockchain.Close()
 	s.logger.Info("close blockchain over")
 
 	return nil

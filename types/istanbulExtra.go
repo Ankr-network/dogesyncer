@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-
 	"github.com/ankr/dogesyncer/helper/keccak"
 	"github.com/dogechain-lab/fastrlp"
 )
@@ -176,7 +175,7 @@ func CalculateHeaderHash(h *Header) ([]byte, error) {
 	vv.Set(arena.NewBytes(h.StateRoot.Bytes()))
 	vv.Set(arena.NewBytes(h.TxRoot.Bytes()))
 	vv.Set(arena.NewBytes(h.ReceiptsRoot.Bytes()))
-	vv.Set(arena.NewBytes(zeroBloom[:]))
+	vv.Set(arena.NewBytes(zeroBloom.Bytes()))
 	vv.Set(arena.NewUint(h.Difficulty))
 	vv.Set(arena.NewUint(h.Number))
 	vv.Set(arena.NewUint(h.GasLimit))
@@ -184,7 +183,5 @@ func CalculateHeaderHash(h *Header) ([]byte, error) {
 	vv.Set(arena.NewUint(h.Timestamp))
 	vv.Set(arena.NewCopyBytes(h.ExtraData))
 
-	buf := keccak.Keccak256Rlp(nil, vv)
-
-	return buf, nil
+	return keccak.Keccak256Rlp(nil, vv), nil
 }

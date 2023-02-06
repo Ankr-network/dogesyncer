@@ -105,17 +105,22 @@ func NewBlockchain(logger hclog.Logger, db ethdb.Database, c *chain.Chain, execu
 	return b, nil
 }
 
-func (b *Blockchain) Close() error {
+func (b *Blockchain) Close() {
 	b.executor.Stop()
 	b.stop()
 	if err := b.BloomIndexer.Close(); err != nil {
-		b.logger.Error("close bloom indexer error")
+		b.logger.Error("close bloom indexer error", err)
 	} else {
 		b.logger.Info("bloom indexer closed")
 	}
 	close(b.closeBloomHandler)
+	if err := b.chaindb.Close(); err != nil {
+		b.logger.Error("close db error", err)
+	} else {
+		b.logger.Info("db close, data flushed")
+	}
 	b.wg.Wait()
-	return b.chaindb.Close()
+	return
 }
 
 func (b *Blockchain) stop() {
@@ -160,8 +165,8 @@ func (b *Blockchain) SelfCheck() {
 			break
 		}
 	}
-	rawdb.WriteHeadHash(b.chaindb, newheader.Hash)
-	rawdb.WriteHeadNumber(b.chaindb, newheader.Number)
+	_ = rawdb.WriteHeadHash(b.chaindb, newheader.Hash)
+	_ = rawdb.WriteHeadNumber(b.chaindb, newheader.Number)
 }
 
 func (b *Blockchain) CurrentTD() *big.Int {

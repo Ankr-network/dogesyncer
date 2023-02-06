@@ -406,7 +406,7 @@ func (f *FilterManager) getLogsFromBlock(query *LogQuery, block *types.Block) ([
 			logs = append(logs, &Log{
 				Address:     log.Address,
 				Topics:      log.Topics,
-				Data:        argBytes(log.Data),
+				Data:        log.Data,
 				BlockNumber: argUint64(block.Header.Number),
 				BlockHash:   block.Header.Hash,
 				TxHash:      block.Transactions[idx].Hash(),

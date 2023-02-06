@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"sync"
 	"time"
 
@@ -384,6 +385,7 @@ func (s *Syncer) SyncWork(ctx context.Context) {
 					err = s.blockchain.WriteBlock(block)
 					if err != nil {
 						s.logger.Error("write block", "err", err)
+						os.Exit(0)
 						return
 					}
 				}
