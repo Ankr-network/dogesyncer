@@ -13,7 +13,6 @@ import (
 	"github.com/ankr/dogesyncer/network/discovery"
 	peerEvent "github.com/ankr/dogesyncer/network/event"
 	"github.com/ankr/dogesyncer/secrets"
-	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -84,7 +83,7 @@ type Server struct {
 
 	connectionCounts *ConnectionInfo
 
-	temporaryDials *hashmap.Map[peer.ID, bool] // map of temporary connections; peerID -> bool
+	temporaryDials *sync.Map // map of temporary connections; peerID -> bool
 
 	bootnodes *bootnodesWrapper // reference of all bootnodes for the node
 }
@@ -157,7 +156,7 @@ func NewServer(logger hclog.Logger, config *Config) (*Server, error) {
 			config.MaxInboundPeers,
 			config.MaxOutboundPeers,
 		),
-		temporaryDials: hashmap.New[peer.ID, bool](),
+		temporaryDials: new(sync.Map),
 	}
 
 	// start gossip protocol

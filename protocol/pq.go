@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/ankr/dogesyncer/types"
-	"github.com/cornelk/hashmap"
 )
 
 var (
@@ -16,7 +15,7 @@ var (
 	// ErrTimeout is returned when an applicable queue operation times out.
 	ErrTimeout = errors.New(`queue: poll timed out`)
 
-	// ErrEmptyQueue is returned when an non-applicable queue operation was called
+	// ErrEmptyQueue is returned when a non-applicable queue operation was called
 	// due to the queue's empty item state
 	ErrEmptyQueue = errors.New(`queue: empty queue`)
 )
@@ -132,11 +131,11 @@ func (items *priorityItems) push(item *types.Block) {
 
 // PriorityQueue is similar to queue except that it takes
 // items that implement the Item interface and adds them
-// to the queue i order.
+// to the queue order.
 type PriorityQueue struct {
 	waiters         waiters
 	items           priorityItems
-	itemMap         *hashmap.Map[uint64, struct{}]
+	itemMap         *sync.Map
 	lock            sync.Mutex
 	disposeLock     sync.Mutex
 	disposed        bool
@@ -159,8 +158,8 @@ func (pq *PriorityQueue) Put(items ...*types.Block) error {
 	for _, item := range items {
 		if pq.allowDuplicates {
 			pq.items.push(item)
-		} else if _, ok := pq.itemMap.Get(item.Number()); !ok {
-			pq.itemMap.Insert(item.Number(), struct{}{})
+		} else if _, ok := pq.itemMap.Load(item.Number()); !ok {
+			pq.itemMap.Store(item.Number(), struct{}{})
 			pq.items.push(item)
 		}
 	}
@@ -202,7 +201,7 @@ func (pq *PriorityQueue) Get(number int) ([]*types.Block, error) {
 	// Remove references to popped items.
 	deleteItems := func(items []*types.Block) {
 		for _, item := range items {
-			pq.itemMap.Del(item.Number())
+			pq.itemMap.Delete(item.Number())
 		}
 	}
 
@@ -300,7 +299,7 @@ func (pq *PriorityQueue) Dispose() {
 func NewPriorityQueue(hint int, allowDuplicates bool) *PriorityQueue {
 	return &PriorityQueue{
 		items:           make(priorityItems, 0, hint),
-		itemMap:         hashmap.New[uint64, struct{}](),
+		itemMap:         new(sync.Map),
 		allowDuplicates: allowDuplicates,
 	}
 }

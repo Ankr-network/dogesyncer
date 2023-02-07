@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ankr/dogesyncer/network/event"
-	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
 
 	"github.com/ankr/dogesyncer/network/proto"
@@ -60,9 +60,9 @@ type networkingServer interface {
 type IdentityService struct {
 	proto.UnimplementedIdentityServer
 
-	pendingPeerConnections *hashmap.Map[peer.ID, network.Direction] // Map that keeps track of the pending status of peers; peerID -> bool
-	logger                 hclog.Logger                             // The IdentityService logger
-	baseServer             networkingServer                         // The interface towards the base networking server
+	pendingPeerConnections *sync.Map        // Map that keeps track of the pending status of peers; peerID -> bool
+	logger                 hclog.Logger     // The IdentityService logger
+	baseServer             networkingServer // The interface towards the base networking server
 
 	chainID int64   // The chain ID of the network
 	hostID  peer.ID // The base networking server's host peer ID
@@ -80,7 +80,7 @@ func NewIdentityService(
 		baseServer:             server,
 		chainID:                chainID,
 		hostID:                 hostID,
-		pendingPeerConnections: hashmap.New[peer.ID, network.Direction](),
+		pendingPeerConnections: new(sync.Map),
 	}
 }
 
@@ -132,7 +132,7 @@ func (i *IdentityService) GetNotifyBundle() *network.NotifyBundle {
 
 // hasPendingStatus checks if a peer is pending handshake [Thread safe]
 func (i *IdentityService) hasPendingStatus(id peer.ID) bool {
-	_, ok := i.pendingPeerConnections.Get(id)
+	_, ok := i.pendingPeerConnections.Load(id)
 
 	return ok
 }
@@ -140,15 +140,15 @@ func (i *IdentityService) hasPendingStatus(id peer.ID) bool {
 // removePendingStatus removes the pending status from a peer,
 // and updates adequate counter information [Thread safe]
 func (i *IdentityService) removePendingStatus(peerID peer.ID) {
-	if direction, loaded := i.pendingPeerConnections.Get(peerID); loaded {
-		i.baseServer.UpdatePendingConnCount(-1, direction)
+	if direction, loaded := i.pendingPeerConnections.Load(peerID); loaded {
+		i.baseServer.UpdatePendingConnCount(-1, direction.(network.Direction))
 	}
 }
 
 // addPendingStatus adds the pending status to a peer,
 // and updates adequate counter information [Thread safe]
 func (i *IdentityService) addPendingStatus(id peer.ID, direction network.Direction) {
-	if _, loaded := i.pendingPeerConnections.GetOrInsert(id, direction); !loaded {
+	if _, loaded := i.pendingPeerConnections.LoadOrStore(id, direction); !loaded {
 		i.baseServer.UpdatePendingConnCount(1, direction)
 	}
 }

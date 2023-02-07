@@ -102,7 +102,7 @@ func (s *Server) EmitEvent(event *peerEvent.PeerEvent) {
 
 // IsTemporaryDial checks if a peer connection is temporary [Thread safe]
 func (s *Server) IsTemporaryDial(peerID peer.ID) bool {
-	_, ok := s.temporaryDials.Get(peerID)
+	_, ok := s.temporaryDials.Load(peerID)
 
 	return ok
 }

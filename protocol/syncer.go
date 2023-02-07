@@ -15,7 +15,6 @@ import (
 	libp2pGrpc "github.com/ankr/dogesyncer/network/grpc"
 	"github.com/ankr/dogesyncer/protocol/proto"
 	"github.com/ankr/dogesyncer/types"
-	"github.com/cornelk/hashmap"
 	"github.com/hashicorp/go-hclog"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/smallnest/chanx"
@@ -54,7 +53,7 @@ type Syncer struct {
 	logger     hclog.Logger
 	blockchain blockchainShim
 
-	peers *hashmap.Map[peer.ID, *SyncPeer] // Maps peer.ID -> SyncPeer
+	peers *sync.Map
 
 	serviceV1 *serviceV1
 
@@ -81,7 +80,7 @@ func NewSyncer(logger hclog.Logger, server *network.Server, blockchain blockchai
 		blockchain:      blockchain,
 		server:          server,
 		syncProgression: progress.NewProgressionWrapper(progress.ChainSyncBulk),
-		peers:           hashmap.New[peer.ID, *SyncPeer](),
+		peers:           new(sync.Map),
 		enqueue:         NewPriorityQueue(defQueueSize, false),
 		enqueueCh:       chanx.NewUnboundedChan[struct{}](defQueueSize),
 		onceSend:        &sync.Once{},
@@ -177,8 +176,8 @@ func (s *Syncer) updatePeerStatus(peerID peer.ID, status *Status) {
 		status.Difficulty,
 	)
 
-	if syncPeer, ok := s.peers.Get(peerID); ok {
-		syncPeer.updateStatus(status)
+	if syncPeer, ok := s.peers.Load(peerID); ok {
+		syncPeer.(*SyncPeer).updateStatus(status)
 	}
 }
 
@@ -225,8 +224,8 @@ func (s *Syncer) Broadcast(b *types.Block) {
 	}
 
 	s.logger.Debug("broadcast start")
-	s.peers.Range(func(peerID peer.ID, peer *SyncPeer) bool {
-		go sendNotify(peerID, peer, req)
+	s.peers.Range(func(peerID any, sp any) bool {
+		go sendNotify(peerID.(peer.ID), sp.(*SyncPeer), req)
 		return true
 	})
 
@@ -455,11 +454,11 @@ func (s *Syncer) BestPeer() *SyncPeer {
 		bestBlockNumber uint64
 	)
 
-	s.peers.Range(func(peerID peer.ID, sp *SyncPeer) bool {
-		peerBlockNumber := sp.Number()
+	s.peers.Range(func(peerID any, sp any) bool {
+		peerBlockNumber := sp.(*SyncPeer).Number()
 		// compare block height
 		if peerBlockNumber > bestBlockNumber {
-			bestPeer = sp
+			bestPeer = sp.(*SyncPeer)
 			bestBlockNumber = peerBlockNumber
 		}
 		return true
@@ -478,9 +477,9 @@ func (s *Syncer) TakePeerByHeight(height, num uint64) []*SyncPeer {
 		count uint64
 	)
 
-	s.peers.Range(func(peerID peer.ID, sp *SyncPeer) bool {
-		if sp.Number() > height {
-			rs[count] = sp
+	s.peers.Range(func(peerID any, sp any) bool {
+		if sp.(*SyncPeer).Number() > height {
+			rs[count] = sp.(*SyncPeer)
 		}
 		count++
 		if count >= num {
@@ -495,7 +494,7 @@ func (s *Syncer) TakePeerByHeight(height, num uint64) []*SyncPeer {
 // AddPeer establishes new connection with the given peer
 func (s *Syncer) AddPeer(peerID peer.ID) error {
 
-	if _, ok := s.peers.Get(peerID); ok {
+	if _, ok := s.peers.Load(peerID); ok {
 		// already connected
 		return nil
 	}
@@ -521,7 +520,7 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 		return err
 	}
 
-	s.peers.Set(peerID, &SyncPeer{
+	s.peers.Store(peerID, &SyncPeer{
 		peer:   peerID,
 		conn:   conn,
 		client: clt,
@@ -534,10 +533,10 @@ func (s *Syncer) AddPeer(peerID peer.ID) error {
 // DeletePeer deletes a peer from syncer
 func (s *Syncer) DeletePeer(peerID peer.ID) error {
 
-	p, ok := s.peers.Get(peerID)
+	p, ok := s.peers.Load(peerID)
 	if ok {
-		s.peers.Del(peerID)
-		if err := p.conn.Close(); err != nil {
+		s.peers.Delete(peerID)
+		if err := p.(*SyncPeer).conn.Close(); err != nil {
 			return err
 		}
 	}
